@@ -21,7 +21,7 @@ import {
   type SalaryStructuresResponse,
   createSalaryStructure,
 } from "@/api/salaryStructures";
-import { getEmployees } from "@/api/employees";
+import { getEmployees, getEmployeeById } from "@/api/employees";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import EmployeeSalarySlips from "@/pages/employee/EmployeeSalarySlips";
@@ -101,12 +101,44 @@ const SalarySlip = () => {
       try {
         const params: any = { page: currentPage, limit: 10 };
         const res: SalaryStructuresResponse = await getSalaryStructures(params);
+        const items = res.data || [];
+        const employeeCache = new Map<string, any>();
+        const enrichedItems: SalaryStructure[] = await Promise.all(
+          items.map(async (item: any) => {
+            // Normalize backend shape: if "employee" exists, assign to employeeId
+            if (item && item.employee && !item.employeeId) {
+              item.employeeId = item.employee;
+            }
+
+            const empVal = item?.employeeId ?? item?.employee;
+            let empId: string | undefined = undefined;
+            if (typeof empVal === "string") {
+              empId = empVal;
+            } else if (empVal && typeof empVal === "object") {
+              empId = empVal._id || empVal.id;
+            }
+            if (empId && (!empVal || !empVal.firstName)) {
+              try {
+                if (employeeCache.has(empId)) {
+                  item.employeeId = employeeCache.get(empId);
+                } else {
+                  const emp = await getEmployeeById(empId);
+                  item.employeeId = emp;
+                  employeeCache.set(empId, emp);
+                }
+              } catch (e) {
+                // ignore enrichment errors; keep original item
+              }
+            }
+            return item as SalaryStructure;
+          })
+        );
         const shape: SalaryResponseShape = {
           page: res.page,
           limit: res.limit,
           total: res.total,
           totalPages: res.totalPages,
-          items: res.data,
+          items: enrichedItems,
         };
         setSalaryData(shape);
         setError(null);
@@ -124,16 +156,26 @@ const SalarySlip = () => {
   const openView = async (record: SalaryStructure) => {
     try {
       setSelectedRecord(record);
-      const empId = (record as any)?.employeeId?._id ?? (record as any)?.employeeId;
+      const rawEmp: any = (record as any)?.employeeId ?? (record as any)?.employee;
+      const empId: string | undefined =
+        typeof rawEmp === "string" ? rawEmp : rawEmp?._id || rawEmp?.id;
+      if (!empId) {
+        toast({
+          title: "Error",
+          description: "Employee ID is missing for this salary structure.",
+          variant: "destructive",
+        });
+        return;
+      }
       const detail = await getSalaryStructureByEmployee(empId);
       setViewDetail(detail.data);
       setViewOpen(true);
-    } catch (e) {
+    } catch (e: any) {
       setError("Failed to load salary structure details");
       toast({
         title: "Error",
         description:
-          (e as any)?.response?.data?.message || "Failed to load salary structure details",
+          e?.response?.data?.message || "Failed to load salary structure details",
         variant: "destructive",
       });
     }
