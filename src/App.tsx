@@ -11,6 +11,7 @@ import RoleRoute from "./components/auth/RoleRoute";
 // Pages
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
 import Attendance from "./pages/Attendance";
 import Leaves from "./pages/Leaves";
 import LeavePolicy from "./pages/LeavePolicy";
@@ -43,8 +44,17 @@ import EmployeeAttendanceDetail from "./pages/EmployeeAttendanceDetail";
 
 // Layout
 import MainLayout from "./components/layout/MainLayout";
+import { useAuth } from "./contexts/AuthContext";
 
 const queryClient = new QueryClient();
+
+const DashboardRoute = () => {
+  const { user } = useAuth();
+  if (user?.role === "employee") {
+    return <EmployeeDashboard />;
+  }
+  return <Dashboard />;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -61,7 +71,7 @@ const App = () => (
                   <MainLayout>
                     <Routes>
                       <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/dashboard" element={<DashboardRoute />} />
                       <Route
                         path="/employees"
                         element={
