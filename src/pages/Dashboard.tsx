@@ -456,7 +456,13 @@ const Dashboard = () => {
   }
   // Super Admin Dashboard UI (default)
   return (
-    <div className="p-6">
+    <div
+      className="min-h-screen w-full overflow-x-hidden p-6"
+      style={{
+        background:
+          "linear-gradient(151.95deg, rgba(76, 220, 156, 0.81) 17.38%, rgba(255, 255, 255, 0.81) 107.36%)",
+      }}
+    >
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-black">Create and Manage all organizations in one place</h1>
       </div>
