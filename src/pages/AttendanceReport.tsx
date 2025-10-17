@@ -274,7 +274,7 @@ const AttendanceReport = () => {
                                     {item.employeeCode} • 
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <span className="cursor-help">{getDesignationPreview(item.designation)}</span>
+                                        <span className="cursor-help text-emerald-900" style={{fontSize: '14px', fontWeight: 500}}>{getDesignationPreview(item.designation)}</span>
                                       </TooltipTrigger>
                                       <TooltipContent>
                                         <span>{item.designation || '-'}</span>
@@ -369,12 +369,12 @@ const AttendanceReport = () => {
                                       )}
                                     </Avatar>
                                     <div>
-                                      <div className="font-medium text-emerald-900">{item.employeeName}</div>
+                                      <div className="text-emerald-900" style={{fontSize: '14px', fontWeight: 500}}>{item.employeeName}</div>
                                       <div className="text-emerald-700 text-sm">{item.employeeCode}</div>
                                     </div>
                                   </div>
                                 </td>
-                                <td className="px-3 py-3">{item.employeeCode}</td>
+                                <td className="px-3 py-3" style={{fontSize: '14px', fontWeight: 500}}>{item.employeeCode}</td>
                                 <td className="px-3 py-3">
                                   <Tooltip>
                                     <TooltipTrigger asChild>
@@ -387,11 +387,11 @@ const AttendanceReport = () => {
                                 </td>
                                 <td className="px-3 py-3"><span className="text-emerald-900" style={{fontSize: '14px', fontWeight: 500}}>{format(new Date(item.date), 'PPP')}</span></td>
                                 <td className="px-3 py-3 text-center">
-                                  <Badge className={getStatusBadgeColor(item.status)}>{normalizeStatus(item.status)}</Badge>
+                                  <Badge className={getStatusBadgeColor(item.status) + ' text-[14px] font-medium'}>{normalizeStatus(item.status)}</Badge>
                                 </td>
-                                <td className="px-3 py-3 text-center">{formatTime(item.clockIn)}</td>
-                                <td className="px-3 py-3 text-center">{formatTime(item.clockOut)}</td>
-                                <td className="px-3 py-3 text-center">{item.totalWorkingHours || '-'}</td>
+                                <td className="px-3 py-3 text-center" style={{fontSize: '14px', fontWeight: 500}}>{formatTime(item.clockIn)}</td>
+                                <td className="px-3 py-3 text-center" style={{fontSize: '14px', fontWeight: 500}}>{formatTime(item.clockOut)}</td>
+                                <td className="px-3 py-3 text-center" style={{fontSize: '14px', fontWeight: 500}}>{item.totalWorkingHours || '-'}</td>
                               </tr>
                             ))
                           )}

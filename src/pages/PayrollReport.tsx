@@ -14,6 +14,29 @@ import { Card, CardContent } from '@/components/ui/card';
 import { getPayrollReport, downloadPayrollReport, PayrollReportItem } from '@/api/payroll';
 import { getEmployees, Employee } from '@/api/employees';
 import { toast } from '@/hooks/use-toast';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+
+// Currency helpers
+const formatCurrency = (value: number | string | null | undefined) => {
+  const num = Number(value) || 0;
+  return num.toLocaleString('en-IN');
+};
+
+const shortenCurrencyDigits = (value: number | string | null | undefined, digits: number = 5) => {
+  const full = formatCurrency(value);
+  const totalDigits = full.replace(/\D/g, '').length;
+  if (totalDigits <= digits) return `₹${full}`;
+  let count = 0;
+  let res = '';
+  for (const ch of full) {
+    if (/\d/.test(ch)) {
+      if (count >= digits) break;
+      count++;
+    }
+    res += ch;
+  }
+  return `₹${res}...`;
+};
 
 interface SelectedEmployee {
   _id: string;
@@ -697,13 +720,31 @@ const PayrollReport = () => {
                               {item.employeeCode}
                             </td>
                             <td className="px-3 py-3 text-right text-sm text-emerald-700" style={{fontSize: '14px', fontWeight: '500'}}>
-                              ₹{(item.basic ?? 0).toLocaleString()}
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-block max-w-[100px] truncate cursor-help">
+                                    {shortenCurrencyDigits(item.basic ?? 0, 5)}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                ₹{formatCurrency(item.basic ?? 0)}
+                              </TooltipContent>
+                              </Tooltip>
                             </td>
                             <td className="px-3 py-3 text-right text-sm text-emerald-700" style={{fontSize: '14px', fontWeight: '500'}}>
                               ₹{(item.hra ?? 0).toLocaleString()}
                             </td>
                             <td className="px-3 py-3 text-right text-sm font-medium text-emerald-800" style={{fontSize: '14px', fontWeight: '500'}}>
-                              ₹{item.grossEarnings?.toLocaleString()}
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-block max-w-[120px] truncate cursor-help">
+                                    {shortenCurrencyDigits(item.grossEarnings ?? 0, 5)}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                ₹{formatCurrency(item.grossEarnings ?? 0)}
+                              </TooltipContent>
+                              </Tooltip>
                             </td>
                             <td className="px-3 py-3 text-right text-sm text-red-600" style={{fontSize: '14px', fontWeight: '500'}}>
                               ₹{parseFloat(item.deductions || '0').toLocaleString()}
