@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -27,11 +27,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { getPayroll, createPayroll, getPayrollByEmployee, updatePayrollById, sendPayslip, downloadPayroll, type PayrollResponse, type PayrollItem } from "@/api/payroll";
+import { getPayroll, createPayroll, getPayrollByEmployee, updatePayrollById, sendPayslip, downloadPayroll, getEmployeePayrollList, type PayrollResponse, type PayrollItem } from "@/api/payroll";
 import { getEmployees } from "@/api/employees";
 import { toast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
-import EmployeePayroll from "@/pages/employee/Payroll";
 
 const computeDeductions = (p: PayrollItem) => {
   const values = [p.pf, p.esi, p.tds, p.professionalTax, p.otherDeductions, p.leaveDeductions];
@@ -39,20 +37,17 @@ const computeDeductions = (p: PayrollItem) => {
 };
 
 const Payroll = () => {
-  const { user } = useAuth();
-  if ((user as any)?.role === "employee") {
-    return <EmployeePayroll />;
-  }
-
   const now = new Date();
-  const [month, setMonth] = useState<number>(now.getMonth()); // 0-11
-  const [year, setYear] = useState<number>(now.getFullYear());
+  const [month, setMonth] = useState<number | null>(null); // 0-11, optional
+  const [year, setYear] = useState<number | null>(null); // optional
   const [search] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [payrollData, setPayrollData] = useState<PayrollResponse | null>(null);
+  const [employeeRows, setEmployeeRows] = useState<PayrollItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const [sendingId, setSendingId] = useState<string | null>(null);
 
   // Create Payroll modal state
@@ -77,9 +72,8 @@ const Payroll = () => {
   const [editPayrollId, setEditPayrollId] = useState<string>("");
 
   const clearFilters = () => {
-    const d = new Date();
-    setMonth(d.getMonth());
-    setYear(d.getFullYear());
+    setMonth(null);
+    setYear(null);
     setCurrentPage(1);
   };
 
@@ -159,38 +153,58 @@ const Payroll = () => {
 
   const years = useMemo(() => {
     const start = 2002;
-    const end = 2030;
-    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
-  }, []);
+    const current = now.getFullYear();
+    const arr: number[] = [];
+    for (let y = current; y >= start; y--) arr.push(y);
+    return arr;
+  }, [now]);
 
-  const visibleRows = useMemo(() => {
-    const rows = payrollData?.data ?? [];
-    // Fallback client-side filter in case backend ignores query params
-    return rows.filter((r) => Number(r.month) === month + 1 && Number(r.year) === year);
-  }, [payrollData, month, year]);
+  // Determine employeeId: prefer query param, fallback to logged-in user from localStorage
+  const parsedEmployeeId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const fromQuery = params.get("employeeId");
+    if (fromQuery && fromQuery.trim()) return fromQuery.trim();
+    try {
+      const raw = localStorage.getItem("user");
+      if (raw) {
+        const u = JSON.parse(raw);
+        return String(u?._id || u?.id || "");
+      }
+    } catch {}
+    return "";
+  }, [location.search]);
+
+  const employeeInfo = useMemo(() => employeeRows[0]?.employeeId, [employeeRows]);
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!parsedEmployeeId) return;
       setLoading(true);
       try {
-        const res = await getPayroll({ page: currentPage, limit: 10, month: month + 1, year });
-        setPayrollData(res);
+        const skip = (currentPage - 1) * 10;
+        const params: any = { skip, limit: 10 };
+        if (month !== null) params.month = month + 1; // API expects 1-12
+        if (year !== null) params.year = year;
+        const res = await getEmployeePayrollList(parsedEmployeeId, params);
+        setEmployeeRows(res?.data ?? []);
         setError(null);
       } catch (e: any) {
-        setPayrollData({ success: false, page: 1, limit: 10, total: 0, totalPages: 1, data: [] });
+        setEmployeeRows([]);
         setError(e?.response?.data?.message || "Failed to load payroll");
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [currentPage, month, year]);
+  }, [parsedEmployeeId, currentPage, month, year]);
 
   const openView = async (record: PayrollItem) => {
     try {
       setViewLoading(true);
       const empId = (record as any)?.employeeId?._id ?? (record as any)?.employeeId;
-      const detail = await getPayrollByEmployee(String(empId), month + 1, year);
+      const m = Number(record.month || (month !== null ? month + 1 : now.getMonth() + 1));
+      const y = Number(record.year || (year !== null ? year : now.getFullYear()));
+      const detail = await getPayrollByEmployee(String(empId), m, y);
       setViewDetail(detail.data);
       setViewOpen(true);
     } catch (e: any) {
@@ -207,7 +221,9 @@ const Payroll = () => {
     try {
       setEditLoading(true);
       const empId = (record as any)?.employeeId?._id ?? (record as any)?.employeeId;
-      const detail = await getPayrollByEmployee(String(empId), month + 1, year);
+      const m = Number(record.month || (month !== null ? month + 1 : now.getMonth() + 1));
+      const y = Number(record.year || (year !== null ? year : now.getFullYear()));
+      const detail = await getPayrollByEmployee(String(empId), m, y);
       const d = detail.data as any;
       setEditPayrollId(String(d?._id || (record as any)?._id));
       setEditForm({
@@ -258,8 +274,8 @@ const Payroll = () => {
   const handleDownload = async (record: PayrollItem) => {
     try {
       const empId = (record as any)?.employeeId?._id ?? (record as any)?.employeeId;
-      const m = month + 1; // API expects 1-12
-      const y = year;
+      const m = Number((month !== null ? month + 1 : (record.month || (now.getMonth() + 1))));
+      const y = Number((year !== null ? year : (record.year || now.getFullYear())));
       
       const response = await downloadPayroll(String(empId), m, y);
       
@@ -300,27 +316,39 @@ const Payroll = () => {
 
   return (
     <div
-      className="min-h-screen w-full overflow-x-hidden p-3 sm:p-6"
+      className="min-h-screen p-3 sm:p-6"
       style={{
         background:
           "linear-gradient(151.95deg, rgba(76, 220, 156, 0.81) 17.38%, rgba(255, 255, 255, 0.81) 107.36%)",
       }}
     >
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        {/* Header with employee info and filters */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-          <div>
-            <h2 className="text-2xl font-semibold text-[#2C373B]">
-              Payroll processed - {visibleRows.length}
-            </h2>
-            <p className="text-sm text-[#2C373B]">
-              Payroll runs overview — manage and send payrolls
-            </p>
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10 border-2 border-emerald-200">
+              {employeeInfo?.profilePhotoUrl ? (
+                <AvatarImage src={employeeInfo.profilePhotoUrl} alt={`${employeeInfo?.firstName ?? ''} ${employeeInfo?.lastName ?? ''}`} />
+              ) : (
+                <AvatarFallback className="bg-emerald-100">
+                  <User className="h-5 w-5 text-emerald-600" />
+                </AvatarFallback>
+              )}
+            </Avatar>
+            <div className="leading-tight">
+              <h2 className="text-xl font-semibold text-[#2C373B]">
+                {employeeInfo ? `${employeeInfo.firstName ?? ''} ${employeeInfo.lastName ?? ''}` : 'Payroll'}
+              </h2>
+              {employeeInfo && (
+                <p className="text-sm text-[#2C373B]">{employeeInfo?.designation ?? ''}</p>
+              )}
+              <p className="text-xs text-[#2C373B]/70">Records: {employeeRows.length}</p>
+            </div>
           </div>
 
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full sm:w-auto">
             <Select
-              value={String(month)}
+              value={month !== null ? String(month) : undefined}
               onValueChange={(val) => {
                 setMonth(Number(val));
                 setCurrentPage(1);
@@ -337,7 +365,7 @@ const Payroll = () => {
             </Select>
 
             <Select
-              value={String(year)}
+              value={year !== null ? String(year) : undefined}
               onValueChange={(val) => {
                 setYear(Number(val));
                 setCurrentPage(1);
@@ -360,96 +388,51 @@ const Payroll = () => {
               Clear filters
             </button>
 
-            <Button
-              className="bg-[#4CDC9C] text-[#2C373B] hover:bg-[#3AC586] focus:outline-none focus:ring-0 shrink-0"
-              onClick={handleCreatePayroll}
-            >
-              Create Payroll
-            </Button>
           </div>
         </div>
 
-        {/* Table with horizontal scroll on small devices */}
+        {/* Employee payroll list table */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-[900px] w-full border-collapse">
-              <thead className="border-b" style={{ background: '#2C373B', color: '#FFFFFF' }}>
-                <tr className="bg-[#2C373B]" style={{ borderBottom: '1px solid #2C373B' }}>
-                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-[#FFFFFF]">
-                    Name
-                  </th>
-                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-[#FFFFFF]">
-                    Code
-                  </th>
-                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-[#FFFFFF]">
-                    Basic
-                  </th>
-                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-[#FFFFFF]">
-                    HRA
-                  </th>
-                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-[#FFFFFF]">
-                    Gross
-                  </th>
-                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-[#FFFFFF]">
-                    Deductions
-                  </th>
-                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-[#FFFFFF]">
-                    Net
-                  </th>
-                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-[#FFFFFF]">
-                    Status
-                  </th>
-                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-[#FFFFFF]">
-                    Actions
-                  </th>
+              <thead className="bg-[#2C373B] border-b">
+                <tr>
+                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-white whitespace-nowrap">Month</th>
+                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-white whitespace-nowrap">Basic (₹)</th>
+                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-white whitespace-nowrap">HRA (₹)</th>
+                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-white whitespace-nowrap">Gross Earnings (₹)</th>
+                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-white whitespace-nowrap">Deductions (₹)</th>
+                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-white whitespace-nowrap">Unpaid Leave Days</th>
+                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-white whitespace-nowrap">Paid Days</th>
+                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-white whitespace-nowrap">Net Salary (₹)</th>
+                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-white whitespace-nowrap">Status</th>
+                  <th className="px-2 py-2 text-left text-[12px] font-semibold text-white whitespace-nowrap">Salary Slip</th>
                 </tr>
               </thead>
 
               <tbody className="text-[14px] text-[#2C373B] font-medium">
                 {loading && (
                   <tr>
-                    <td colSpan={9} className="px-4 py-6 text-center text-[#2C373B]">Loading...</td>
+                    <td colSpan={10} className="px-4 py-6 text-center text-[#2C373B]">Loading...</td>
                   </tr>
                 )}
-                {!loading && visibleRows.length === 0 && (
+                {!loading && employeeRows.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-4 py-6 text-center text-[#2C373B]">No data available</td>
+                    <td colSpan={10} className="px-4 py-6 text-center text-[#2C373B]">No data available</td>
                   </tr>
                 )}
-                {!loading && visibleRows.map((p) => (
+                {!loading && employeeRows.map((p) => (
                   <tr
                     key={p._id}
                     className="border-b last:border-0 hover:bg-emerald-50 transition-colors"
                   >
-                    <td className="px-2 py-2">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-7 w-7">
-                          {p.employeeId?.profilePhotoUrl ? (
-                            <AvatarImage
-                              src={p.employeeId.profilePhotoUrl}
-                              alt={`${p.employeeId?.firstName ?? ''} ${p.employeeId?.lastName ?? ''}`}
-                            />
-                          ) : (
-                            <AvatarFallback>
-                              <User className="h-3.5 w-3.5 text-gray-500" />
-                            </AvatarFallback>
-                          )}
-                        </Avatar>
-                        <div className="leading-tight">
-                          <div className="text-[14px] font-medium text-[#2C373B]">
-                            {p.employeeId?.firstName ?? ''} {p.employeeId?.lastName ?? ''}
-                          </div>
-                          <div className="text-[11px] text-[#2C373B]">
-                            {p.employeeId?.designation ?? ''}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-2 py-2">{p.employeeId?.employeeCode ?? ''}</td>
+                    <td className="px-2 py-2">{monthNames[(Number(p.month || 1)) - 1]} {p.year}</td>
                     <td className="px-2 py-2">₹{Number(p.basic || 0).toLocaleString()}</td>
                     <td className="px-2 py-2">₹{Number(p.hra || 0).toLocaleString()}</td>
                     <td className="px-2 py-2">₹{Number(p.grossEarnings || 0).toLocaleString()}</td>
                     <td className="px-2 py-2">₹{computeDeductions(p).toLocaleString()}</td>
+                    <td className="px-2 py-2">{Number(p.lossOfPayDays || 0)}</td>
+                    <td className="px-2 py-2">{Math.max(0, Number(p.totalWorkedDays || 0) - Number(p.lossOfPayDays || 0))}</td>
                     <td className="px-2 py-2 font-medium">₹{Number(p.netPayable || 0).toLocaleString()}</td>
                     <td className="px-2 py-2">
                       <span
@@ -465,57 +448,43 @@ const Payroll = () => {
                         {(p.status || '').charAt(0).toUpperCase() + (p.status || '').slice(1)}
                       </span>
                     </td>
-
                     <td className="px-2 py-2">
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => openEdit(p)}
-                          className="h-7 w-7 flex items-center justify-center rounded bg-[#4CDC9C] text-[#2C373B] hover:opacity-90 focus:outline-none focus:ring-0"
-                        >
-                          <Edit className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => openView(p)}
-                          className="h-7 w-7 flex items-center justify-center rounded bg-[#4CDC9C] text-[#2C373B] hover:opacity-90 focus:outline-none focus:ring-0"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleSend(p)}
-                                disabled={sendingId === p._id}
-                                className="h-7 w-7 flex items-center justify-center rounded bg-[#4CDC9C] text-[#2C373B] hover:opacity-90 focus:outline-none focus:ring-0"
-                              >
-                                <Send className="w-3.5 h-3.5" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              Send payroll message
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleDownload(p)}
-                                className="h-7 w-7 flex items-center justify-center rounded bg-[#4CDC9C] text-[#2C373B] hover:opacity-90 focus:outline-none focus:ring-0"
-                              >
-                                <DownloadCloud className="w-3.5 h-3.5" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>Download payroll</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
+                      <button
+                        onClick={() => handleDownload(p)}
+                        className="text-emerald-700 hover:underline"
+                      >
+                        Download
+                      </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          {(() => {
+            const showPagination = employeeRows.length === 10 || currentPage > 1;
+            return showPagination ? (
+              <div className="flex items-center justify-end gap-3 px-4 py-3 border-t bg-gray-50">
+                <Button
+                  variant="outline"
+                  disabled={loading || currentPage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="text-[#2C373B]"
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-[#2C373B]">Page {currentPage}</span>
+                <Button
+                  variant="outline"
+                  disabled={loading || employeeRows.length < 10}
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                  className="text-[#2C373B]"
+                >
+                  Next
+                </Button>
+              </div>
+            ) : null;
+          })()}
         </div>
       </div>
       {/* Create Payroll Modal */}

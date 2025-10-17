@@ -22,6 +22,38 @@ API.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Add a response interceptor to auto-logout on invalid/expired token
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const msg = (
+      (error?.response?.data?.message as string | undefined) || ''
+    ).toLowerCase();
+
+    const isInvalidToken =
+      status === 401 ||
+      msg.includes('invalid token') ||
+      msg.includes('token expired') ||
+      msg.includes('jwt');
+
+    if (isInvalidToken) {
+      try {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('role');
+      } catch {}
+      if (typeof window !== 'undefined') {
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/login') {
+          window.location.href = '/login';
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const login = async (email: string, password: string) => {
   try {
     const response = await API.post('/auth/login', { email, password });

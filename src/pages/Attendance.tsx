@@ -16,6 +16,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { getAttendance } from "@/api/attendance";
+import { useAuth } from "@/contexts/AuthContext";
+import EmpAttendance from "../EmpAttendance";
 
 interface Employee {
   _id: string;
@@ -43,7 +45,7 @@ interface AttendanceResponse {
   items: AttendanceRecord[];
 }
 
-const Attendance = () => {
+const AdminAttendanceView = () => {
   const [date, setDate] = useState<Date>(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
@@ -321,6 +323,16 @@ const Attendance = () => {
       </div>
     </div>
   );
+};
+
+// Wrapper component: show employee view for employees, admin view otherwise
+const Attendance = () => {
+  const { user } = useAuth();
+  const role = (user?.role || "").toLowerCase();
+  if (role === "employee") {
+    return <EmpAttendance />;
+  }
+  return <AdminAttendanceView />;
 };
 
 export default Attendance;

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -12,6 +13,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 
 import { Label } from "@/components/ui/label";
@@ -19,11 +21,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { User, ChevronDown, X, Search, ChevronLeft, ChevronRight, Plus, Calendar, Clock, Edit, Eye, Filter, Trash2 } from "lucide-react";
 import { getEmployees, Employee as EmployeeType, EmployeesResponse } from "@/api/employees";
 import { getRegularizationRequests, updateRegularizationRequest, RegularizationRequest, RegularizationResponse, createRegularizationRequest, CreateRegularizationRequest } from "@/api/regularizations";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import EmployeeRegularization from "../../EmployeeRegularization";
 
-const AdminRegularization = () => {
+const Regularization = () => {
   const { user } = useAuth();
   const role = user?.role || localStorage.getItem('role');
   const [status, setStatus] = useState<string>("all");
@@ -63,10 +64,27 @@ const AdminRegularization = () => {
   const [formSelectedEmployee, setFormSelectedEmployee] = useState<EmployeeType | null>(null);
   const [showFormEmployeeDropdown, setShowFormEmployeeDropdown] = useState(false);
   const [loadingFormEmployees, setLoadingFormEmployees] = useState(false);
+  // URL query params
+  const location = useLocation();
+  const [queryEmployeeId, setQueryEmployeeId] = useState<string | null>(null);
+  const [queryStatus, setQueryStatus] = useState<string | null>(null);
+
+  // Read URL query on mount
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const empId = params.get('employeeId');
+    const stat = params.get('status');
+    if (empId) setQueryEmployeeId(empId);
+    if (stat && (stat === 'pending' || stat === 'approved' || stat === 'rejected')) {
+      setStatus(stat);
+      setQueryStatus(stat);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     fetchRegularizationRequests();
-  }, [selectedEmployee, status, currentPage]);
+  }, [selectedEmployee, status, currentPage, user]);
 
   // Search employees when user types or when dropdown is opened
   useEffect(() => {
@@ -82,6 +100,46 @@ const AdminRegularization = () => {
     }
   }, [formEmployeeSearch, showFormEmployeeDropdown]);
 
+  // Prefill logged-in employee in the submission form and lock selector
+  useEffect(() => {
+    if (showForm) {
+      const id = (user as any)?._id || (user as any)?.id;
+      const firstName = (user as any)?.firstName || ((user as any)?.name ? String((user as any)?.name).split(' ')[0] : '');
+      const lastName = (user as any)?.lastName || ((user as any)?.name ? String((user as any)?.name).split(' ').slice(1).join(' ') : '');
+      const employeeCode = (user as any)?.employeeCode || '';
+      const designation = (user as any)?.designation || '';
+      const profilePhotoUrl = (user as any)?.profilePhotoUrl || (user as any)?.profileImage || undefined;
+
+      if (id && (firstName || lastName)) {
+        const prefilled: EmployeeType = {
+          _id: id,
+          organizationId: (user as any)?.organizationId || '',
+          firstName: firstName || '',
+          lastName: lastName || '',
+          email: (user as any)?.email || '',
+          phone: (user as any)?.phone || '',
+          employeeCode: employeeCode || '',
+          designation: designation || '',
+          status: 'active',
+          loginEnabled: true,
+          isActive: true,
+          isSystemGenerated: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          __v: 0,
+          profilePhotoUrl,
+        };
+        setFormSelectedEmployee(prefilled);
+        setFormEmployeeSearch(`${prefilled.firstName} ${prefilled.lastName} (${prefilled.employeeCode})`);
+        setShowFormEmployeeDropdown(false);
+      }
+    } else {
+      setFormSelectedEmployee(null);
+      setFormEmployeeSearch('');
+      setShowFormEmployeeDropdown(false);
+    }
+  }, [showForm, user]);
+
   const fetchRegularizationRequests = async () => {
     try {
       setLoading(true);
@@ -91,8 +149,10 @@ const AdminRegularization = () => {
         limit: itemsPerPage
       };
 
-      if (selectedEmployee) {
-        filters.employeeId = selectedEmployee._id;
+      // Prefer selected employee; otherwise query param; otherwise logged-in user's id
+      const fallbackEmployeeId = selectedEmployee?._id || queryEmployeeId || (user?._id || (user as any)?.id);
+      if (fallbackEmployeeId) {
+        filters.employeeId = fallbackEmployeeId;
       }
 
       if (status !== "all") {
@@ -203,6 +263,10 @@ const AdminRegularization = () => {
 
   // Since filtering is now done server-side, we don't need client-side filtering
   const filteredRequests = requests;
+  const isPrefilledCurrentUser = useMemo(() => {
+    const id = (user as any)?._id || (user as any)?.id;
+    return !!formSelectedEmployee && !!id && formSelectedEmployee._id === id;
+  }, [formSelectedEmployee, user]);
   
   const totalPages = Math.ceil(totalRequests / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -355,13 +419,7 @@ const AdminRegularization = () => {
 
   if (loading) {
     return (
-      <div
-        className="min-h-screen w-full overflow-x-hidden px-3 py-6 sm:px-6"
-        style={{
-          background:
-            "linear-gradient(151.95deg, rgba(76, 220, 156, 0.81) 17.38%, rgba(255, 255, 255, 0.81) 107.36%)",
-        }}
-      >
+      <div className="min-h-screen px-3 py-6 sm:px-6" style={{ background: 'linear-gradient(151.95deg, rgba(76, 220, 156, 0.81) 17.38%, rgba(255, 255, 255, 0.81) 107.36%)' }}>
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="animate-pulse">
             <div className="h-8 bg-emerald-200 rounded w-1/4 mb-4"></div>
@@ -377,13 +435,7 @@ const AdminRegularization = () => {
   }
 
   return (
-    <div
-      className="min-h-screen w-full overflow-x-hidden px-2 py-6 sm:px-6"
-      style={{
-        background:
-          "linear-gradient(151.95deg, rgba(76, 220, 156, 0.81) 17.38%, rgba(255, 255, 255, 0.81) 107.36%)",
-      }}
-    >
+    <div className="min-h-screen px-2 py-6 sm:px-6" style={{ background: 'linear-gradient(151.95deg, rgba(76, 220, 156, 0.81) 17.38%, rgba(255, 255, 255, 0.81) 107.36%)' }}>
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -404,90 +456,7 @@ const AdminRegularization = () => {
                 Request Regularization
               </Button>
             )}
-            {/* Employee Search Filter */}
-            <div className="relative employee-search-container">
-              <div 
-                className="flex items-center gap-2 border border-emerald-300 rounded-lg px-2 py-1 bg-[rgb(209,250,229)] w-[320px] hover:border-emerald-400 focus-within:border-emerald-500 transition-colors h-8 cursor-pointer"
-                onClick={handleSearchClick}
-              >
-                <Search className="h-4 w-4 text-emerald-500 flex-shrink-0" />
-                
-                {selectedEmployee ? (
-                  <div className="flex items-center gap-2 flex-1">
-                    {/* Selected Employee Tag */}
-                    <div className="flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs">
-                      <span className="truncate max-w-[200px]">
-                        {selectedEmployee.firstName} {selectedEmployee.lastName} ({selectedEmployee.employeeCode})
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          clearEmployee();
-                        }}
-                        className="hover:bg-emerald-200 rounded-full p-0.5"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <Input
-                      type="text"
-                      placeholder="Search employees..."
-                      value={employeeSearch}
-                      onChange={(e) => setEmployeeSearch(e.target.value)}
-                      onFocus={handleSearchFocus}
-                      className="border-0 p-0 h-auto focus-visible:ring-0 focus-visible:ring-offset-0 text-[14px] font-medium flex-1 bg-[rgb(209,250,229)] text-[#2C373B]"
-                    />
-                    <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                  </>
-                )}
-              </div>
-
-              {/* Employee Dropdown */}
-              {showEmployeeDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-emerald-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                  {loadingEmployees ? (
-                    <div className="p-3 text-center text-gray-500">
-                      <div className="animate-spin h-4 w-4 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto"></div>
-                    </div>
-                  ) : employees.length > 0 ? (
-                    employees.map((employee) => (
-                      <div
-                        key={employee._id}
-                        className="p-3 hover:bg-emerald-50 cursor-pointer border-b last:border-0"
-                        onClick={() => selectEmployee(employee)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            {employee.profilePhotoUrl ? (
-                              <AvatarImage src={employee.profilePhotoUrl} alt={`${employee.firstName} ${employee.lastName}`} />
-                            ) : (
-                              <AvatarFallback>
-                                <User className="h-4 w-4 text-gray-500" />
-                              </AvatarFallback>
-                            )}
-                          </Avatar>
-                          <div>
-                            <div className="font-medium text-sm">
-                              {employee.firstName} {employee.lastName}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {employee.employeeCode} • {employee.designation}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-3 text-center text-gray-500 text-sm">
-                      No employees found
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            {/* Employee Search Filter removed as requested */}
 
             {/* Status Filter */}
             <Select value={status} onValueChange={setStatus}>
@@ -510,32 +479,30 @@ const AdminRegularization = () => {
           <div className="bg-white rounded-xl shadow-sm border border-emerald-200 overflow-hidden">
           <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-emerald-300 scrollbar-track-emerald-100" style={{ WebkitOverflowScrolling: 'touch' }}>
             <table className="min-w-[820px] w-full table-fixed">
-              <thead className="border-b" style={{ background: '#2C373B', color: '#FFFFFF' }}>
+              <thead className="border-b" style={{ backgroundColor: '#2C373B' }}>
                 <tr>
-                  <th className="px-3 py-3 text-left text-[12px] font-semibold text-[#FFFFFF] w-[18%]">
+                  <th className="px-3 py-3 text-left text-[12px] font-semibold w-[18%]" style={{ color: '#FFFFFF' }}>
                     Employee
                   </th>
-                  <th className="px-3 py-3 text-left text-[12px] font-semibold text-[#FFFFFF] w-[10%]">
+                  <th className="px-3 py-3 text-left text-[12px] font-semibold w-[10%]" style={{ color: '#FFFFFF' }}>
                     Date
                   </th>
-                  <th className="px-5 py-3 text-left text-[12px] font-semibold text-[#FFFFFF] w-[8%] min-w-[110px]">
+                  <th className="px-5 py-3 text-left text-[12px] font-semibold w-[8%] min-w-[110px]" style={{ color: '#FFFFFF' }}>
                     Field
                   </th>
-                  <th className="px-6 py-3 text-left text-[12px] font-semibold text-[#FFFFFF] w-[10%] min-w-[120px]">
+                  <th className="px-6 py-3 text-left text-[12px] font-semibold w-[10%] min-w-[120px]" style={{ color: '#FFFFFF' }}>
                     Time
                   </th>
-                  <th className="px-6 py-3 text-left text-[12px] font-semibold text-[#FFFFFF] w-[20%] min-w-[160px]">
+                  <th className="px-6 py-3 text-left text-[12px] font-semibold w-[20%] min-w-[160px]" style={{ color: '#FFFFFF' }}>
                     Reason
                   </th>
-                  <th className="px-3 py-3 text-left text-[12px] font-semibold text-[#FFFFFF] w-[12%]">
+                  <th className="px-3 py-3 text-left text-[12px] font-semibold w-[12%]" style={{ color: '#FFFFFF' }}>
                      Status
                    </th>
-                   <th className="px-3 py-3 text-left text-[12px] font-semibold text-[#FFFFFF] w-[12%]">
+                   <th className="px-3 py-3 text-left text-[12px] font-semibold w-[12%]" style={{ color: '#FFFFFF' }}>
                      Remarks
                    </th>
-                   <th className="px-3 py-3 text-left text-[12px] font-semibold text-[#FFFFFF] w-[10%]">
-                     Actions
-                   </th>
+                   
                 </tr>
               </thead>
 
@@ -543,7 +510,7 @@ const AdminRegularization = () => {
                 {filteredRequests.length === 0 && (
                    <tr>
                      <td
-                       colSpan={8}
+                       colSpan={7}
                        className="px-4 py-6 text-center text-gray-600"
                      >
                        No regularization requests found
@@ -575,9 +542,18 @@ const AdminRegularization = () => {
                           <div className="text-[14px] font-medium text-[#2C373B] truncate">
                             {req.employeeId.firstName} {req.employeeId.lastName}
                           </div>
-                          <div className="text-[14px] font-medium text-[#2C373B] truncate">
-                            {req.employeeId.employeeCode}
-                          </div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="text-[14px] font-medium text-[#2C373B] truncate" title={req.employeeId.designation || ''}>
+                                {req.employeeId.designation || ''}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <span className="text-sm" style={{ color: '#2C373B' }}>
+                                {req.employeeId.designation || 'No designation'}
+                              </span>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
                       </div>
                     </td>
@@ -650,43 +626,7 @@ const AdminRegularization = () => {
                       )}
                     </td>
 
-                    {/* Actions */}
-                    <td className="px-3 py-3">
-                      {editingRows.has(req._id) ? (
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            onClick={() => handleSave(req._id)}
-                            disabled={updating.has(req._id)}
-                            className="h-7 px-2 text-xs bg-[#4CDC9C] hover:bg-[#43c58d] text-[#2C373B]"
-                          >
-                            {updating.has(req._id) ? (
-                              <div className="animate-spin h-3 w-3 border border-white border-t-transparent rounded-full" />
-                            ) : (
-                              'Update'
-                            )}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleCancel(req._id)}
-                            disabled={updating.has(req._id)}
-                            className="h-7 px-2 text-xs bg-[#4CDC9C] border-[#4CDC9C] text-[#2C373B] hover:bg-[#43c58d]"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(req._id, req.status, req.remarks || '')}
-                          className="text-[#2C373B] border-[#4CDC9C] bg-[#4CDC9C] hover:bg-[#43c58d] h-7 px-2 text-xs"
-                        >
-                          Edit
-                        </Button>
-                      )}
-                    </td>
+                    
                   </tr>
                 ))}
               </tbody>
@@ -767,16 +707,27 @@ const AdminRegularization = () => {
                         <span className="font-medium">
                           {formSelectedEmployee.firstName} {formSelectedEmployee.lastName}
                         </span>
-                        <span className="text-emerald-600 text-xs">
-                          ({formSelectedEmployee.employeeCode})
-                        </span>
-                        <button
-                          type="button"
-                          onClick={clearFormEmployee}
-                          className="text-emerald-600 hover:text-emerald-800 ml-1"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-emerald-600 text-xs truncate max-w-[160px]">
+                              {formSelectedEmployee.designation || ''}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            <span className="text-sm" style={{ color: '#2C373B' }}>
+                              {formSelectedEmployee.designation || 'No designation'}
+                            </span>
+                          </TooltipContent>
+                        </Tooltip>
+                        {!isPrefilledCurrentUser && (
+                          <button
+                            type="button"
+                            onClick={clearFormEmployee}
+                            className="text-emerald-600 hover:text-emerald-800 ml-1"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <>
@@ -794,7 +745,7 @@ const AdminRegularization = () => {
                   </div>
                   
                   {/* Employee Dropdown */}
-                  {showFormEmployeeDropdown && (formEmployees.length > 0 || loadingFormEmployees) && (
+                  {!isPrefilledCurrentUser && showFormEmployeeDropdown && (formEmployees.length > 0 || loadingFormEmployees) && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-emerald-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
                       {loadingFormEmployees ? (
                         <div className="p-2 text-center text-gray-500 text-sm">Searching...</div>
@@ -1024,16 +975,6 @@ const AdminRegularization = () => {
       </div>
     </div>
   );
-};
-
-// Wrapper component: employees see EmployeeRegularization, others see admin view
-const Regularization = () => {
-  const { user } = useAuth();
-  const role = (user?.role || "").toLowerCase();
-  if (role === "employee") {
-    return <EmployeeRegularization />;
-  }
-  return <AdminRegularization />;
 };
 
 export default Regularization;

@@ -18,6 +18,8 @@ import LeaveRequests from "./pages/LeaveRequests";
 import LeaveAllotment from "./pages/LeaveAllotment";
 import LeaveAllotmentHistory from "./pages/LeaveAllotmentHistory";
 import ApplyLeave from "./pages/ApplyLeave";
+import LeaveBalance from "./pages/LeaveBalance";
+import TrackLeaveRequest from "./pages/TrackLeaveRequest";
 import Employees from "./pages/Employees";
 import Profile from "./pages/Profile";
 import OrganizationSettings from "./pages/OrganizationSettings";
@@ -97,7 +99,7 @@ const App = () => (
                       <Route
                         path="/regularization"
                         element={
-                          <RoleRoute allowedRoles={["companyAdmin","hr"]} redirectTo="/dashboard">
+                          <RoleRoute allowedRoles={["companyAdmin","hr","employee"]} redirectTo="/dashboard">
                             <Regularization />
                           </RoleRoute>
                         }
@@ -105,7 +107,7 @@ const App = () => (
                       <Route
                         path="/regularization/submit"
                         element={
-                          <RoleRoute allowedRoles={["companyAdmin","hr"]} redirectTo="/dashboard">
+                          <RoleRoute allowedRoles={["companyAdmin","hr","employee"]} redirectTo="/dashboard">
                             <SubmitRegularization />
                           </RoleRoute>
                         }
@@ -115,7 +117,7 @@ const App = () => (
                       <Route
                         path="/payroll"
                         element={
-                          <RoleRoute allowedRoles={["companyAdmin","hr"]} redirectTo="/dashboard">
+                          <RoleRoute allowedRoles={["companyAdmin","hr","employee"]} redirectTo="/dashboard">
                             <Payroll />
                           </RoleRoute>
                         }
@@ -123,7 +125,7 @@ const App = () => (
                       <Route
                         path="/salary-slips"
                         element={
-                          <RoleRoute allowedRoles={["companyAdmin","hr"]} redirectTo="/dashboard">
+                          <RoleRoute allowedRoles={["companyAdmin","hr","employee"]} redirectTo="/dashboard">
                             <SalarySlips />
                           </RoleRoute>
                         }
@@ -131,7 +133,7 @@ const App = () => (
                       <Route
                         path="/attendance"
                         element={
-                          <RoleRoute allowedRoles={["companyAdmin","hr"]} redirectTo="/dashboard">
+                          <RoleRoute allowedRoles={["companyAdmin","hr","employee"]} redirectTo="/dashboard">
                             <Attendance />
                           </RoleRoute>
                         }
@@ -147,7 +149,7 @@ const App = () => (
                       <Route
                         path="/apply-leave"
                         element={
-                          <RoleRoute allowedRoles={["companyAdmin"]} redirectTo="/dashboard">
+                          <RoleRoute allowedRoles={["companyAdmin","hr","employee"]} redirectTo="/dashboard">
                             <ApplyLeave />
                           </RoleRoute>
                         }
@@ -163,8 +165,24 @@ const App = () => (
                       <Route
                         path="/leaves/policy"
                         element={
-                          <RoleRoute allowedRoles={["companyAdmin","hr"]} redirectTo="/dashboard">
+                          <RoleRoute allowedRoles={["companyAdmin","hr","employee"]} redirectTo="/dashboard">
                             <LeavePolicy />
+                          </RoleRoute>
+                        }
+                      />
+                      <Route
+                        path="/leaves/balance"
+                        element={
+                          <RoleRoute allowedRoles={["companyAdmin","hr","employee"]} redirectTo="/dashboard">
+                            <LeaveBalance />
+                          </RoleRoute>
+                        }
+                      />
+                      <Route
+                        path="/leaves/track"
+                        element={
+                          <RoleRoute allowedRoles={["companyAdmin","hr","employee"]} redirectTo="/dashboard">
+                            <TrackLeaveRequest />
                           </RoleRoute>
                         }
                       />

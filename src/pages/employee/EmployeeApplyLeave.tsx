@@ -8,24 +8,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Calendar as CalendarIcon, Upload, Send } from 'lucide-react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { uploadFile } from '@/api/uploadFile';
 import { getLeavePolicies, LeavePolicy } from '@/api/leavePolicy';
 import { createLeaveRequest, getLeaveRequests, LeaveRequestsResponse, cancelLeaveRequest } from '@/api/leaves';
 import { Badge } from '@/components/ui/badge';
-import EmployeeApplyLeave from './employee/EmployeeApplyLeave';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { ClipboardList, X } from 'lucide-react';
 
 const ApplyLeave = () => {
   const { user } = useAuth();
-  if (user?.role === 'employee') {
-    return <EmployeeApplyLeave />;
-  }
   if (user?.role === 'superAdmin') {
     return <Navigate to="/dashboard" replace />;
   }
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(true);
   const [leavePolicies, setLeavePolicies] = useState<LeavePolicy[]>([]);
   const [leaveTypeId, setLeaveTypeId] = useState<string>('');
   const [leaveTypeLabel, setLeaveTypeLabel] = useState<string>('');
@@ -35,8 +33,6 @@ const ApplyLeave = () => {
   const [days, setDays] = useState<number>(0);
   const [reason, setReason] = useState('');
   const [documentUrl, setDocumentUrl] = useState<string | undefined>();
-  const [documentPreview, setDocumentPreview] = useState<string | undefined>();
-  // Multi-upload state
   const [documentUrls, setDocumentUrls] = useState<string[]>([]);
   const [documentPreviews, setDocumentPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -44,16 +40,22 @@ const ApplyLeave = () => {
   const [requests, setRequests] = useState<LeaveRequestsResponse | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [startOpen, setStartOpen] = useState(false);
+  const [endOpen, setEndOpen] = useState(false);
+  const [daysManuallyEdited, setDaysManuallyEdited] = useState(false);
+  const navigate = useNavigate();
 
   // Compute days when dates chosen
   useEffect(() => {
+    if (daysManuallyEdited) return;
     if (startDate && endDate) {
       const diff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       setDays(diff > 0 ? diff : 0);
     } else {
       setDays(0);
     }
-  }, [startDate, endDate]);
+  }, [startDate, endDate, daysManuallyEdited]);
 
   // Fetch leave types when user opens the dropdown
   const handleOpenLeaveType = async () => {
@@ -66,11 +68,15 @@ const ApplyLeave = () => {
     }
   };
 
+  const ALLOWED_TYPES = ['casual', 'medical', 'earned', 'maternity', 'paternity', 'other'];
   const leaveTypeItems = useMemo(() => {
     const items: { id: string; type: string; policyId: string }[] = [];
     leavePolicies.forEach((p) => {
       p.leaveTypes.forEach((lt) => {
-        if (lt._id) items.push({ id: lt._id, type: lt.type, policyId: p._id });
+        const t = (lt.type || '').toLowerCase();
+        if (lt._id && ALLOWED_TYPES.includes(t)) {
+          items.push({ id: lt._id, type: lt.type, policyId: p._id });
+        }
       });
     });
     return items;
@@ -88,23 +94,32 @@ const ApplyLeave = () => {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files ? Array.from(e.target.files) : [];
     if (files.length === 0) return;
+    const existingCount = documentUrls.length;
+    const availableSlots = Math.max(0, 5 - existingCount);
+    const toUpload = files.slice(0, availableSlots);
+    if (toUpload.length === 0) {
+      alert('You can upload up to 5 images.');
+      e.currentTarget.value = '';
+      return;
+    }
     setUploading(true);
     try {
-      // Enforce max 5
-      const remaining = Math.max(0, 5 - documentUrls.length);
-      const toUpload = files.slice(0, remaining);
-      const uploaded = await Promise.all(toUpload.map(async (file) => {
+      const uploaded: string[] = [];
+      const previews: string[] = [];
+      for (const file of toUpload) {
         const url = await uploadFile(file);
-        return { url, isImage: file.type.startsWith('image/') };
-      }));
-      const newUrls = [...documentUrls, ...uploaded.map(u => u.url)];
-      setDocumentUrls(newUrls);
-      const newPreviews = [...documentPreviews, ...uploaded.filter(u => u.isImage).map(u => u.url)];
-      setDocumentPreviews(newPreviews);
-      // Also set single url/preview for backward UI indicator
-      if (uploaded[0]) {
-        setDocumentUrl(uploaded[0].url);
-        setDocumentPreview(uploaded[0].isImage ? uploaded[0].url : undefined);
+        uploaded.push(url);
+        if (file.type.startsWith('image/')) {
+          previews.push(url);
+        }
+      }
+      const nextUrls = [...documentUrls, ...uploaded].slice(0, 5);
+      const nextPreviews = [...documentPreviews, ...previews].slice(0, 5);
+      setDocumentUrls(nextUrls);
+      setDocumentPreviews(nextPreviews);
+      // Maintain legacy single URL (first)
+      if (!documentUrl && nextUrls.length > 0) {
+        setDocumentUrl(nextUrls[0]);
       }
     } catch (err) {
       console.error('File upload failed', err);
@@ -113,6 +128,15 @@ const ApplyLeave = () => {
       setUploading(false);
       e.currentTarget.value = '';
     }
+  };
+
+  const removeDocumentAt = (idx: number) => {
+    const nextUrls = documentUrls.filter((_, i) => i !== idx);
+    setDocumentUrls(nextUrls);
+    const nextPreviews = documentPreviews.filter((_, i) => i !== idx);
+    setDocumentPreviews(nextPreviews);
+    // keep legacy single documentUrl in sync
+    setDocumentUrl(nextUrls[0]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -139,6 +163,7 @@ const ApplyLeave = () => {
     try {
       await createLeaveRequest(payload);
       setShowForm(false);
+      setSuccessOpen(true);
       fetchRequests();
     } catch (err: any) {
       console.error('Submit failed', err);
@@ -147,6 +172,16 @@ const ApplyLeave = () => {
       setSubmitting(false);
     }
   };
+
+  // Auto-close success modal and redirect to Track Leave after short delay
+  useEffect(() => {
+    if (!successOpen) return;
+    const t = setTimeout(() => {
+      setSuccessOpen(false);
+      navigate('/leaves/track');
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [successOpen, navigate]);
 
   const fetchRequests = async (page: number = 1) => {
     try {
@@ -173,7 +208,7 @@ const ApplyLeave = () => {
           <div className="space-y-2">
             <Label>Leave Type</Label>
             <Select onOpenChange={(open) => open && handleOpenLeaveType()} value={leaveTypeId} onValueChange={handleLeaveTypeSelect}>
-              <SelectTrigger className="h-8 bg-[rgb(209,250,229)] text-[#2C373B]">
+              <SelectTrigger className="h-8 bg-[rgb(209,250,229)] text-[#2C373B] hover:bg-green-100 hover:border-[#9AE6B4]">
                 <SelectValue placeholder="Select leave type" />
               </SelectTrigger>
               <SelectContent>
@@ -187,63 +222,104 @@ const ApplyLeave = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Start Date</Label>
-              <Popover>
+              <Popover open={startOpen} onOpenChange={setStartOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn('w-full justify-start text-left font-normal bg-[rgb(209,250,229)] text-[#2C373B]', !startDate && 'text-muted-foreground')}>
+                  <Button variant="outline" className={cn('w-full justify-start text-left font-normal bg-[rgb(209,250,229)] text-[#2C373B] hover:bg-green-100 hover:border-[#9AE6B4]', !startDate && 'text-muted-foreground')}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {startDate ? format(startDate, 'PPP') : 'Pick date'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus className="pointer-events-auto" />
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={(date) => {
+                      setStartDate(date);
+                      setStartOpen(false);
+                      setDaysManuallyEdited(false);
+                    }}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
                 </PopoverContent>
               </Popover>
             </div>
             <div className="space-y-2">
               <Label>End Date</Label>
-              <Popover>
+              <Popover open={endOpen} onOpenChange={setEndOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn('w-full justify-start text-left font-normal bg-[rgb(209,250,229)] text-[#2C373B]', !endDate && 'text-muted-foreground')}>
+                  <Button variant="outline" className={cn('w-full justify-start text-left font-normal bg-[rgb(209,250,229)] text-[#2C373B] hover:bg-green-100 hover:border-[#9AE6B4]', !endDate && 'text-muted-foreground')}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {endDate ? format(endDate, 'PPP') : 'Pick date'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus className="pointer-events-auto" />
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={(date) => {
+                      setEndDate(date);
+                      setEndOpen(false);
+                      setDaysManuallyEdited(false);
+                    }}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
                 </PopoverContent>
               </Popover>
             </div>
             <div className="space-y-2">
               <Label>Total Leave days</Label>
-              <div className="h-10 border rounded-md flex items-center px-3 bg-[rgb(209,250,229)] text-[#2C373B]">{days || '-'}</div>
+              <input
+                type="number"
+                min={0}
+                value={days}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value || '0', 10);
+                  setDays(isNaN(val) ? 0 : val);
+                  setDaysManuallyEdited(true);
+                }}
+                className="h-10 border rounded-md flex items-center px-3 bg-[rgb(209,250,229)] text-[#2C373B] hover:bg-green-100 hover:border-[#9AE6B4]"
+              />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label>Reason</Label>
-            <Textarea rows={4} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason for leave" className="bg-[rgb(209,250,229)] text-[#2C373B]" />
+            <Textarea rows={4} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason for leave" className="bg-[rgb(209,250,229)] text-[#2C373B] hover:bg-green-100 hover:border-[#9AE6B4]" />
           </div>
 
-          <div className="space-y-3">
-            <Label>Attachments (up to 5)</Label>
-            {documentPreviews.length === 0 ? (
-              <div className="h-20 w-24 border rounded-lg bg-[rgb(209,250,229)] flex items-center justify-center overflow-hidden">
-                <Upload className="h-6 w-6 text-muted-foreground" />
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                {documentPreviews.map((preview, idx) => (
-                  <div key={idx} className="h-20 border rounded-lg bg-[rgb(209,250,229)] flex items-center justify-center overflow-hidden">
-                    <img src={preview} alt={`uploaded-${idx}`} className="h-full w-full object-cover" />
+          <div className="space-y-2">
+            <Label>Documents (max 5)</Label>
+            <div className="flex flex-wrap gap-3">
+              {documentPreviews.length > 0 ? (
+                documentPreviews.map((src, idx) => (
+                  <div key={idx} className="relative h-20 w-20 border rounded-lg bg-[rgb(209,250,229)] overflow-hidden">
+                    <img src={src} alt={`doc-${idx}`} className="h-full w-full object-cover" />
+                    <button type="button" onClick={() => removeDocumentAt(idx)} className="absolute top-1 right-1 bg-white/80 rounded-full p-0.5">
+                      <X className="h-3 w-3" />
+                    </button>
                   </div>
-                ))}
-              </div>
-            )}
-            <div className="flex items-center gap-3">
-              <input type="file" multiple accept="image/*,.pdf,.doc,.docx" onChange={handleFileChange} />
-              {documentUrls.length > 0 && (
-                <span className="text-sm text-muted-foreground">{documentUrls.length} file(s) attached</span>
+                ))
+              ) : (
+                <div className="h-20 w-20 border rounded-lg bg-[rgb(209,250,229)] flex items-center justify-center">
+                  <Upload className="h-6 w-6 text-muted-foreground" />
+                </div>
               )}
+              {/* non-image files indicator */}
+              {documentUrls.length > documentPreviews.length && (
+                <span className="text-xs text-muted-foreground">{documentUrls.length - documentPreviews.length} file(s) attached</span>
+              )}
+            </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 w-full">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileChange}
+                className="w-full sm:w-auto border rounded-md p-2 bg-white text-[#2C373B] hover:border-[#9AE6B4]"
+              />
+              <span className="text-xs text-muted-foreground break-words sm:whitespace-nowrap">You can upload up to 5 images.</span>
             </div>
           </div>
 
@@ -377,22 +453,43 @@ const ApplyLeave = () => {
     </div>
   );
 
-  // Gate to companyAdmin role UI
-  if (user?.role !== 'companyAdmin') {
-    return (
-      <div className="p-6"><h2 className="text-xl font-semibold">Access restricted</h2></div>
-    );
-  }
+  // Removed companyAdmin-only gate so all non-superAdmin users can apply leave
 
   return (
     <div
-      className="min-h-screen w-full overflow-x-hidden p-6"
+      className="min-h-screen py-6 px-4"
       style={{
         background:
-          'linear-gradient(151.95deg, rgba(76, 220, 156, 0.81) 17.38%, rgba(255, 255, 255, 0.81) 107.36%)',
+          "linear-gradient(151.95deg, rgba(76, 220, 156, 0.81) 17.38%, rgba(255, 255, 255, 0.81) 107.36%)",
       }}
     >
       {showForm ? renderForm() : renderTable()}
+
+      {/* Success Modal */}
+      <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="sr-only">Leave Request Submitted</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-2">
+            <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
+              <ClipboardList className="h-8 w-8 text-green-600" />
+            </div>
+            <div className="text-xl font-semibold">Leave Request Submitted</div>
+            <div className="text-sm text-muted-foreground text-center">You can track or cancel the request before approval.</div>
+            <div className="flex gap-3 mt-2">
+              <Button variant="outline" onClick={() => { setSuccessOpen(false); navigate('/leaves/track'); }}>Track Leave Status</Button>
+              <Button className="bg-[#4CDC9C] text-[#2C373B] hover:bg-[#3fd18e]" onClick={() => { setSuccessOpen(false); navigate('/dashboard'); }}>Go to Dashboard</Button>
+            </div>
+          </div>
+          <DialogClose asChild>
+            <button aria-label="Close" className="absolute right-4 top-4 rounded-md opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </button>
+          </DialogClose>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

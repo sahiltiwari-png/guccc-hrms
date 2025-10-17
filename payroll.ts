@@ -135,8 +135,6 @@ export interface PayrollReportItem {
   profilePhotoUrl: string;
   month: number;
   year: number;
-  basic?: number;
-  hra?: number;
   grossEarnings: number;
   deductions: string;
   lossOfPayDays: number;

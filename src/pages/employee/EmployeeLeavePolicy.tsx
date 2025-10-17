@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,13 +41,8 @@ import {
   UpdateLeaveTypePayload,
 } from "@/api/leavePolicy";
 import { useAuth } from "@/contexts/AuthContext";
-import EmployeeLeavePolicy from "./employee/EmployeeLeavePolicy";
 
 const LeavePolicy = () => {
-  const { user, organizationId } = useAuth();
-  if (user?.role === "employee") {
-    return <EmployeeLeavePolicy />;
-  }
   const [policies, setPolicies] = useState<LeavePolicy[]>([]);
   const [loading, setLoading] = useState(true);
   const [addingLeaveType, setAddingLeaveType] = useState(false);
@@ -57,7 +51,7 @@ const LeavePolicy = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<LeavePolicy | null>(null);
   const [editingLeaveType, setEditingLeaveType] = useState<LeaveType | null>(null);
-  // organizationId is already obtained above
+  const { organizationId } = useAuth();
 
   const [policyForm, setPolicyForm] = useState({
     name: "",
@@ -390,61 +384,48 @@ const LeavePolicy = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div
+        className="min-h-screen flex items-center justify-center px-1 sm:px-3 md:px-6 py-4"
+        style={{
+          background:
+            "linear-gradient(151.95deg, rgba(76, 220, 156, 0.81) 17.38%, rgba(255, 255, 255, 0.81) 107.36%)",
+        }}
+      >
         <div className="text-lg">Loading...</div>
       </div>
     );
   }
 
+  const activePolicy = policies.find((p) => p.isActive) || policies[0];
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "-";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+  const now = new Date();
+  const monthStartLabel = new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const monthEndLabel = new Date(now.getFullYear(), now.getMonth() + 1, 0).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
   return (
     <div
-      className="min-h-screen w-full overflow-x-hidden px-2 sm:px-4 md:px-6 py-6"
+      className="min-h-screen px-1 sm:px-3 md:px-6 py-4"
       style={{
         background:
           "linear-gradient(151.95deg, rgba(76, 220, 156, 0.81) 17.38%, rgba(255, 255, 255, 0.81) 107.36%)",
       }}
     >
       <div className="w-full space-y-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="font-semibold" style={{ color: '#2C373B', fontSize: '24px', fontWeight: 600 }}>Review the policy information and manage leave types</h1>
-          {/* Banner with policy details */}
-          {policies.length > 0 && (
-            <div className="mt-2 rounded-2xl p-4" style={{ backgroundColor: '#2C373B' }}>
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="text-white font-semibold" style={{ fontSize: '18px' }}>Leave Policy details</div>
-                  <div className="text-white mt-2" style={{ fontSize: '14px', fontWeight: 500 }}>
-                    {policies[0]?.name ?? ''}
-                  </div>
-                  <div className="text-white" style={{ fontSize: '14px', fontWeight: 500 }}>
-                    {(() => {
-                      const efFromRaw = policies[0]?.effectiveFrom;
-                      const efToRaw = policies[0]?.effectiveTo;
-                      if (!efFromRaw) return '';
-                      const start = new Date(efFromRaw);
-                      const startMonthStart = new Date(start.getFullYear(), start.getMonth(), 1);
-                      const end = efToRaw ? new Date(efToRaw) : new Date(start.getFullYear(), 11, 31);
-                      const endMonthEnd = new Date(end.getFullYear(), end.getMonth() + 1, 0);
-                      const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-                      return `${fmt(startMonthStart)} - ${fmt(endMonthEnd)}`;
-                    })()}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Switch checked={policies[0]?.isActive} onCheckedChange={() => {}} />
-                  <span className="text-white" style={{ fontSize: '14px' }}>Active</span>
-                </div>
-              </div>
-            </div>
-          )}
+        <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+          <h1 className="text-xl font-semibold tracking-wide" style={{color: '#2C373B'}}>Review the policy information and manage leave types</h1>
         </div>
 
         {isFormMode ? (
           <Card className="w-full shadow-lg rounded-2xl">
-            <CardHeader className="p-3 sm:p-6">
+            <CardHeader>
               <CardTitle style={{color: '#2C373B'}}>Policy Basics</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6 p-3 sm:p-6">
+            <CardContent className="space-y-6">
               {/* form fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -577,75 +558,92 @@ const LeavePolicy = () => {
           </Card>
         ) : (
           <Card className="shadow-lg rounded-2xl">
-            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 sm:p-6">
-              <CardTitle className="break-words" style={{color: '#2C373B'}}>Leave Policy Management</CardTitle>
-              <Button
-                onClick={() => setIsModalOpen(true)}
-                className="hover:opacity-90 w-full sm:w-auto"
-                style={{ backgroundColor: '#4CDC9C', color: '#2C373B' }}
-                disabled={addingLeaveType}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                {addingLeaveType ? "Adding..." : "Add Leave types"}
-              </Button>
+            <CardHeader className="px-3 py-3 sm:px-5 sm:py-5">
+              <CardTitle>Existing Leave Policies</CardTitle>
             </CardHeader>
-            <CardContent className="p-3 sm:p-6">
+            <CardContent className="px-3 sm:px-5 pt-0">
+              {/* Banner above table */}
+              <div className="mb-4">
+                <div className="bg-[#2C373B] text-white rounded-2xl px-3 py-4 md:px-6 md:py-5 flex items-start justify-between">
+                  <div className="space-y-1">
+                    <div className="text-sm md:text-base font-medium">Leave Policy details</div>
+                    <div className="space-y-0.5">
+                      <div className="text-xs md:text-sm font-medium text-white/90">Annual Leave Policy</div>
+                      <div className="text-xs md:text-sm text-gray-300">{monthStartLabel} - {monthEndLabel}</div>
+                    </div>
+                  </div>
+                  <div className="text-emerald-400 font-semibold">Active</div>
+                </div>
+              </div>
               <div className="overflow-x-auto">
-                <div className="rounded-md overflow-hidden">
-                <Table className="w-full">
-                  <TableHeader style={{ background: '#2C373B', color: '#FFFFFF' }}>
-                    <TableRow className="bg-[#2C373B]" style={{ borderBottom: '1px solid #2C373B' }}>
-                      <TableHead className="px-2" style={{fontSize: '12px', fontWeight: '600', color: '#FFFFFF'}}>Leave Type</TableHead>
-                      <TableHead className="px-2" style={{fontSize: '12px', fontWeight: '600', color: '#FFFFFF'}}>Limit</TableHead>
-                      <TableHead className="px-2" style={{fontSize: '12px', fontWeight: '600', color: '#FFFFFF'}}>Interval</TableHead>
-                      <TableHead className="px-2" style={{fontSize: '12px', fontWeight: '600', color: '#FFFFFF'}}>Carry Forward</TableHead>
-                      <TableHead className="px-2" style={{fontSize: '12px', fontWeight: '600', color: '#FFFFFF'}}>Encashment</TableHead>
-                      <TableHead className="px-2" style={{fontSize: '12px', fontWeight: '600', color: '#FFFFFF'}}>Probation</TableHead>
-                      <TableHead className="px-2" style={{fontSize: '12px', fontWeight: '600', color: '#FFFFFF'}}>Min Work Days</TableHead>
-                      <TableHead className="px-2" style={{fontSize: '12px', fontWeight: '600', color: '#FFFFFF'}}>Actions</TableHead>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-[#2C373B] hover:bg-[#2C373B]">
+                      <TableHead className="text-white hover:text-white" style={{fontSize: '12px', fontWeight: 600}}>Leave Types</TableHead>
+                      <TableHead className="text-white hover:text-white" style={{fontSize: '12px', fontWeight: 600}}>Leave cycle</TableHead>
+                      <TableHead className="text-white hover:text-white" style={{fontSize: '12px', fontWeight: 600}}>Leave days</TableHead>
+                      <TableHead className="text-white hover:text-white" style={{fontSize: '12px', fontWeight: 600}}>Carry Forward</TableHead>
+                      <TableHead className="text-white hover:text-white" style={{fontSize: '12px', fontWeight: 600}}>Encashment</TableHead>
+                      <TableHead className="text-white hover:text-white" style={{fontSize: '12px', fontWeight: 600}}>Probation Applicable</TableHead>
+                      <TableHead className="text-white hover:text-white" style={{fontSize: '12px', fontWeight: 600}}>Continuous days(Min)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {policies.map((policy) =>
-                      policy.leaveTypes.map((leaveType, index) => (
-                        <TableRow key={`${policy._id}-${index}`}>
-                          <TableCell className="capitalize" style={{fontSize: '14px', fontWeight: '500', color: '#2C373B'}}>
-                            {leaveType.type}
-                          </TableCell>
-                          <TableCell style={{fontSize: '14px', fontWeight: '500', color: '#2C373B'}}>{leaveType.intervalValue}</TableCell>
-                          <TableCell className="capitalize" style={{fontSize: '14px', fontWeight: '500', color: '#2C373B'}}>
-                            {leaveType.interval}
-                          </TableCell>
-                          <TableCell style={{fontSize: '14px', fontWeight: '500', color: '#2C373B'}}>
-                            {leaveType.carryForward ? "Yes" : "No"}
-                          </TableCell>
-                          <TableCell style={{fontSize: '14px', fontWeight: '500', color: '#2C373B'}}>
-                            {leaveType.encashable ? "Yes" : "No"}
-                          </TableCell>
-                          <TableCell style={{fontSize: '14px', fontWeight: '500', color: '#2C373B'}}>
-                            {leaveType.probationApplicable ? "Yes" : "No"}
-                          </TableCell>
-                          <TableCell style={{fontSize: '14px', fontWeight: '500', color: '#2C373B'}}>
-                            {leaveType.minContinuousWorkDays || "N/A"}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex space-x-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => handleEditPolicy(policy._id)}
-                                style={{backgroundColor: '#4CDC9C', color: '#2C373B'}}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      policy.leaveTypes.map((leaveType, index) => {
+                        const typeBgClass = (() => {
+                          switch ((leaveType.type || '').toLowerCase()) {
+                            case 'casual':
+                              return 'bg-green-300';
+                            case 'earned':
+                              return 'bg-rose-300';
+                            case 'medical':
+                              return 'bg-yellow-300';
+                            case 'maternity':
+                              return 'bg-violet-300';
+                            case 'paternity':
+                              return 'bg-sky-300';
+                            case 'other':
+                            case 'others':
+                              return 'bg-gray-300';
+                            default:
+                              return 'bg-gray-300';
+                          }
+                        })();
+                        return (
+                          <TableRow key={`${policy._id}-${index}`}>
+                            {/* Leave Types (colored cell) */}
+                            <TableCell className={`capitalize ${typeBgClass}`} style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>
+                              {leaveType.type}
+                            </TableCell>
+                            {/* Leave cycle (interval) */}
+                            <TableCell className="capitalize" style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>
+                              {leaveType.interval}
+                            </TableCell>
+                            {/* Leave days (limit) */}
+                            <TableCell style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>{leaveType.intervalValue}</TableCell>
+                            {/* Carry Forward */}
+                            <TableCell style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>
+                              {leaveType.carryForward ? 'Yes' : 'No'}
+                            </TableCell>
+                            {/* Encashment */}
+                            <TableCell style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>
+                              {leaveType.encashable ? 'Yes' : 'No'}
+                            </TableCell>
+                            {/* Probation Applicable */}
+                            <TableCell style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>
+                              {leaveType.probationApplicable ? 'Yes' : 'No'}
+                            </TableCell>
+                            {/* Continuous days(Min) */}
+                            <TableCell style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>
+                              {leaveType.minContinuousWorkDays || 'N/A'}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -653,7 +651,7 @@ const LeavePolicy = () => {
 
         {/* Modal */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-xl">
             <DialogHeader>
               <DialogTitle style={{color: '#2C373B'}}>Add Leave Type</DialogTitle>
             </DialogHeader>
@@ -890,7 +888,7 @@ const LeavePolicy = () => {
 
         {/* Edit Policy Modal */}
         <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-xl">
             <DialogHeader>
               <DialogTitle style={{color: '#2C373B'}}>Edit Policy</DialogTitle>
             </DialogHeader>
@@ -1023,7 +1021,7 @@ const LeavePolicy = () => {
 
         {/* Edit Leave Type Modal */}
         <Dialog open={!!editingLeaveType} onOpenChange={() => setEditingLeaveType(null)}>
-          <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-xl">
             <DialogHeader>
               <DialogTitle style={{color: '#2C373B'}}>Edit Leave Type - {editingLeaveType?.type}</DialogTitle>
             </DialogHeader>

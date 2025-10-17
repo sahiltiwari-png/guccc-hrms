@@ -53,10 +53,11 @@ export const createLeaveRequest = async (
 };
 
 export const getLeaveRequests = async (
-  page: number = 1, 
-  limit: number = 10, 
-  status?: string, 
-  userIds?: string[]
+  page: number = 1,
+  limit: number = 10,
+  status?: string,
+  userIds?: string[],
+  leaveType?: string
 ): Promise<LeaveRequestsResponse> => {
   const params = new URLSearchParams();
   params.append('page', page.toString());
@@ -70,6 +71,10 @@ export const getLeaveRequests = async (
     userIds.forEach(userId => {
       params.append('userId', userId);
     });
+  }
+  
+  if (leaveType) {
+    params.append('leaveType', leaveType);
   }
   
   const res = await API.get(`/leaves?${params.toString()}`);

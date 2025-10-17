@@ -81,6 +81,8 @@ export interface CreateRegularizationRequest {
   field: 'clockIn' | 'clockOut';
   requestedTime: string;
   reason: string;
+  // Optional employeeId for creating a request; required by backend
+  employeeId?: string;
 }
 
 export const createRegularizationRequest = async (

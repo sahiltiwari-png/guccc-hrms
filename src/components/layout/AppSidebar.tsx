@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/contexts/AuthContext';
+import employeeNavigation from '../../../EmployeesideAppSidebar';
 
 const navigation: NavigationItem[] = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
@@ -52,7 +53,7 @@ const navigation: NavigationItem[] = [
     { title: "Leave Policy", url: "/leaves/policy" },
     { title: "Leave Allotment", url: "/leaves/allotment" },
     { title: "Leave Requests", url: "/leaves/requests" }
-  ] },
+  ] }, 
   { title: "Reports", url: "/reports", icon: FileText, hasSubmenu: true, submenu: [
     { title: "Employees Report", url: "/reports/employees" },
     { title: "Leave Requests Report", url: "/reports/leave-requests" },
@@ -141,7 +142,8 @@ export function AppSidebar() {
                   </SidebarMenuItem> */}
                 </>
               ) : (
-                navigation.map((item) => (
+                // Use employee-specific navigation when role is 'employee'
+                (role === 'employee' ? employeeNavigation : navigation).map((item) => (
                   <SidebarMenuItem key={item.title}>
                     {item.hasSubmenu ? (
                       <>

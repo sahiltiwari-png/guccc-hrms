@@ -75,6 +75,27 @@ export const getAttendanceReportAll = async (params?: {
   return response.data as AttendanceReportResponse;
 };
 
+// Download attendance report for a given range/filters
+export const downloadAttendanceReport = async (params?: {
+  employeeId?: string;
+  startDate?: string;
+  endDate?: string;
+  status?: string;
+}) => {
+  const query: string[] = [];
+  if (params) {
+    if (params.employeeId) query.push(`employeeId=${params.employeeId}`);
+    if (params.startDate) query.push(`startDate=${params.startDate}`);
+    if (params.endDate) query.push(`endDate=${params.endDate}`);
+    if (params.status) query.push(`status=${params.status}`);
+  }
+  const qs = query.length ? `?${query.join('&')}` : '';
+  const response = await API.get(`/reports/attendance/download${qs}`, {
+    responseType: 'blob',
+  });
+  return response;
+};
+
 // Download monthly attendance report
 export const downloadMonthlyAttendanceReport = async (params: {
   organizationId: string;
