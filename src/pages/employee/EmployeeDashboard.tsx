@@ -94,15 +94,15 @@ const Dashboard = () => {
   }, [user?._id, user?.id]);
 
   const getGeolocation = (): Promise<{lat:number; lng:number}> => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       if (!("geolocation" in navigator)) {
-        resolve({ lat: 12.9716, lng: 77.5946 });
+        reject(new Error("Geolocation not supported on this browser"));
         return;
       }
       navigator.geolocation.getCurrentPosition(
         (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => resolve({ lat: 12.9716, lng: 77.5946 }),
-        { enableHighAccuracy: true, timeout: 5000 }
+        (err) => reject(err),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     });
   };
