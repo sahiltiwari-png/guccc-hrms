@@ -42,6 +42,8 @@ const OrganizationDetails = () => {
     status: "",
     dayStartTime: "",
     dayEndTime: "",
+    latitude: "",
+    longitude: "",
     admin: {
       firstName: "",
       lastName: "",
@@ -199,7 +201,9 @@ const OrganizationDetails = () => {
       setLoading(true);
       const payload = {
         ...formData,
-        contactEmail: formData.organizationEmail
+        contactEmail: formData.organizationEmail,
+        latitude: formData.latitude ? parseFloat(String(formData.latitude)) : undefined,
+        longitude: formData.longitude ? parseFloat(String(formData.longitude)) : undefined,
       };
       await updateOrganization(id, payload);
       toast({ title: "Success", description: "Organization updated successfully" });
@@ -342,6 +346,17 @@ const OrganizationDetails = () => {
                 <Input id="country" name="country" value={formData.country} onChange={handleChange} placeholder="United States" required />
               </div>
             </div>
+            {/* Latitude/Longitude */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+              <div className="space-y-2">
+                <Label htmlFor="latitude">Latitude</Label>
+                <Input id="latitude" name="latitude" value={formData.latitude} onChange={handleChange} placeholder="e.g., 12.9716" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="longitude">Longitude</Label>
+                <Input id="longitude" name="longitude" value={formData.longitude} onChange={handleChange} placeholder="e.g., 77.5946" />
+              </div>
+            </div>
           </div>
         );
       case 3:
@@ -473,6 +488,10 @@ const OrganizationDetails = () => {
                   <div>{formData.country}</div>
                   <div className="text-muted-foreground">Zip Code:</div>
                   <div>{formData.zipCode}</div>
+                  <div className="text-muted-foreground">Latitude:</div>
+                  <div>{formData.latitude || ""}</div>
+                  <div className="text-muted-foreground">Longitude:</div>
+                  <div>{formData.longitude || ""}</div>
                 </div>
               </div>
               <div className="space-y-2">
