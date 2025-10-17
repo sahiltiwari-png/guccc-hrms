@@ -80,8 +80,16 @@ const LeaveAllotmentHistory: React.FC = () => {
     navigate('/leaves/allotment');
   };
 
+  const hasActiveFilter = selectedLeaveType !== 'all';
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div
+      className="min-h-screen"
+      style={{
+        background:
+          "linear-gradient(151.95deg, rgba(76, 220, 156, 0.81) 17.38%, rgba(255, 255, 255, 0.81) 107.36%)",
+      }}
+    >
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -128,14 +136,20 @@ const LeaveAllotmentHistory: React.FC = () => {
         {/* Filter Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
           <div className="px-6 py-4 border-b border-gray-100">
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div
+              className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between rounded-md"
+              style={{
+                border: hasActiveFilter ? "1px solid #CFEDE3" : "1px solid #EAF7F1",
+                borderRadius: 8,
+              }}
+            >
               <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
                 <div className="flex items-center gap-2">
                   <Filter className="w-4 h-4 text-gray-500" />
                   <label className="text-sm font-medium text-gray-700">Filter by:</label>
                 </div>
                 <Select value={selectedLeaveType} onValueChange={handleLeaveTypeChange}>
-                  <SelectTrigger className="w-full sm:w-[200px] bg-white border-gray-200 focus:border-blue-400 focus:ring-blue-400">
+                  <SelectTrigger className="w-full sm:w-[200px] border-gray-200 focus:border-blue-400 focus:ring-blue-400" style={{ background: "#E1F9EF", color: "#2C373B" }}>
                     <SelectValue placeholder="Select leave type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -190,13 +204,13 @@ const LeaveAllotmentHistory: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b-2 border-gray-100 bg-gray-50">
-                      <th className="text-left py-4 px-6 font-semibold text-gray-800 text-sm">Leave Types</th>
-                      <th className="text-center py-4 px-6 font-semibold text-gray-800 text-sm">Total Allocated</th>
-                      <th className="text-center py-4 px-6 font-semibold text-gray-800 text-sm">Total Taken</th>
-                      <th className="text-center py-4 px-6 font-semibold text-gray-800 text-sm">Total Balance</th>
-                      <th className="text-center py-4 px-6 font-semibold text-gray-800 text-sm">Actions</th>
-                    </tr>
+                    <tr className="border-b-2 border-gray-100" style={{ background: "#2C373B" }}>
+                      <th className="text-left py-4 px-6 font-semibold text-sm" style={{ color: "#FFFFFF" }}>Leave Types</th>
+                      <th className="text-center py-4 px-6 font-semibold text-sm" style={{ color: "#FFFFFF" }}>Total Allocated</th>
+                      <th className="text-center py-4 px-6 font-semibold text-sm" style={{ color: "#FFFFFF" }}>Total Taken</th>
+                      <th className="text-center py-4 px-6 font-semibold text-sm" style={{ color: "#FFFFFF" }}>Total Balance</th>
+                      <th className="text-center py-4 px-6 font-semibold text-sm" style={{ color: "#FFFFFF" }}>Actions</th>
+                     </tr>
                   </thead>
                   <tbody className="bg-white">
                     {historyData.length === 0 ? (

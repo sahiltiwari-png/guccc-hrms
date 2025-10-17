@@ -25,6 +25,9 @@ import {
   EmployeeListItem,
   allocateLeave
 } from "@/api/leaves";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Badge } from "@/components/ui/badge";
+import { getLeavePolicies, type LeavePolicy } from "@/api/leavePolicy";
 
 // Define all possible leave types
 const LEAVE_TYPES = [
@@ -85,45 +88,30 @@ const LeaveAllotment = () => {
   const [employeeList, setEmployeeList] = useState<EmployeeListItem[]>([]);
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
+  // New: dynamic leave types fetched from /leave-policy
+  const [policyLeaveTypes, setPolicyLeaveTypes] = useState<string[]>([]);
 
-  // Modal states
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [selectedEmployeeForHistory, setSelectedEmployeeForHistory] = useState<EmployeeLeaveData | null>(null);
-
-  // Transform API data to include all leave types with 0 values for missing types
-  const transformLeaveBalanceData = (apiData: LeaveBalanceEmployee[]): EmployeeLeaveData[] => {
-    return apiData.map(item => {
-      const leaveBalances = {
-        casual: { allocated: 0, used: 0, balance: 0 },
-        earned: { allocated: 0, used: 0, balance: 0 },
-        medical: { allocated: 0, used: 0, balance: 0 },
-        paternity: { allocated: 0, used: 0, balance: 0 },
-        maternity: { allocated: 0, used: 0, balance: 0 },
-        other: { allocated: 0, used: 0, balance: 0 }
-      };
-
-      // Fill in the actual data from API
-      item.leaveBalances.forEach(balance => {
-        const leaveType = balance.leaveType.toLowerCase() as keyof typeof leaveBalances;
-        if (leaveBalances[leaveType] !== undefined) {
-          leaveBalances[leaveType] = {
-            allocated: balance.allocated,
-            used: balance.used,
-            balance: balance.balance
-          };
-        }
-      });
-
-      return {
-        _id: item.employee._id,
-        firstName: item.employee.firstName,
-        lastName: item.employee.lastName,
-        employeeCode: item.employee.employeeCode,
-        designation: item.employee.designation,
-        profilePhotoUrl: item.employee.profilePhotoUrl,
-        leaveBalances
-      };
-    });
+  // Load leave types on demand when the Leave Type dropdown is opened
+  const loadLeaveTypes = async () => {
+    if (policyLeaveTypes.length > 0) return; // avoid refetching if already loaded
+    try {
+      const res = await getLeavePolicies();
+      const policies: LeavePolicy[] = Array.isArray(res?.data) ? res.data : [];
+      const uniqueTypes = new Set<string>();
+      policies
+        .filter(p => p.isActive)
+        .forEach(p => {
+          p.leaveTypes.forEach(lt => {
+            if (lt?.type) uniqueTypes.add(lt.type.toLowerCase());
+          });
+        });
+      const typesArray = Array.from(uniqueTypes);
+      // Fallback to static list if API returns none
+      setPolicyLeaveTypes(typesArray.length > 0 ? typesArray : LEAVE_TYPES.map(t => t.value));
+    } catch (err) {
+      console.error("Failed to load leave policies", err);
+      setPolicyLeaveTypes(LEAVE_TYPES.map(t => t.value));
+    }
   };
 
   // Fetch leave balance data
@@ -433,16 +421,25 @@ const LeaveAllotment = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Leave Type
                 </label>
-                <Select value={leaveType} onValueChange={setLeaveType}>
+                {/* Dropdown populated from /leave-policy to show all leave types */}
+                <Select value={leaveType} onValueChange={setLeaveType} onOpenChange={(open) => { if (open) loadLeaveTypes(); }}>
                   <SelectTrigger style={{backgroundColor: 'rgb(209 250 229)', color: '#2C373B'}}>
                     <SelectValue placeholder="Select leave type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {LEAVE_TYPES.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
+                    {policyLeaveTypes.length > 0 ? (
+                      policyLeaveTypes.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t.charAt(0).toUpperCase() + t.slice(1)}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      LEAVE_TYPES.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -873,3 +870,38 @@ const LeaveAllotment = () => {
 };
 
 export default LeaveAllotment;
+
+const transformLeaveBalanceData = (apiData: LeaveBalanceEmployee[]): EmployeeLeaveData[] => {
+  return apiData.map(item => {
+    const leaveBalances = {
+      casual: { allocated: 0, used: 0, balance: 0 },
+      earned: { allocated: 0, used: 0, balance: 0 },
+      medical: { allocated: 0, used: 0, balance: 0 },
+      paternity: { allocated: 0, used: 0, balance: 0 },
+      maternity: { allocated: 0, used: 0, balance: 0 },
+      other: { allocated: 0, used: 0, balance: 0 }
+    };
+
+    // Fill in the actual data from API
+    item.leaveBalances.forEach(balance => {
+      const leaveTypeKey = balance.leaveType.toLowerCase() as keyof typeof leaveBalances;
+      if (leaveBalances[leaveTypeKey] !== undefined) {
+        leaveBalances[leaveTypeKey] = {
+          allocated: balance.allocated,
+          used: balance.used,
+          balance: balance.balance
+        };
+      }
+    });
+
+    return {
+      _id: item.employee._id,
+      firstName: item.employee.firstName,
+      lastName: item.employee.lastName,
+      employeeCode: item.employee.employeeCode,
+      designation: item.employee.designation,
+      profilePhotoUrl: item.employee.profilePhotoUrl,
+      leaveBalances
+    };
+  });
+};
