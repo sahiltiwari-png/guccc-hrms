@@ -206,7 +206,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {role === 'companyAdmin' && (
+        {(role === 'companyAdmin' || role === 'hr') && (
           <SidebarGroup>
             <SidebarGroupLabel className="uppercase text-xs font-medium px-2 mb-2 bg-[#4CDC9C] text-[#23292F] rounded-md">
               {state !== "collapsed" ? "My space" : ""}
