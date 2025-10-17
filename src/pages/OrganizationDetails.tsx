@@ -165,7 +165,6 @@ const OrganizationDetails = () => {
       { key: 'logoUrl', label: 'Logo URL' },
       { key: 'timezone', label: 'Timezone' },
       { key: 'workingDays', label: 'Working Days' },
-      { key: 'defaultShiftId', label: 'Default Shift ID' },
       { key: 'status', label: 'Status' },
       { key: 'dayStartTime', label: 'Day Start Time' },
       { key: 'dayEndTime', label: 'Day End Time' },
@@ -301,10 +300,6 @@ const OrganizationDetails = () => {
                 {formData.logoUrl && (
                   <img src={formData.logoUrl} alt="Logo Preview" className="mt-2 h-16" />
                 )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="defaultShiftId">Default Shift ID *</Label>
-                <Input id="defaultShiftId" name="defaultShiftId" value={formData.defaultShiftId} onChange={handleChange} placeholder="shift123" required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="status">Status *</Label>
