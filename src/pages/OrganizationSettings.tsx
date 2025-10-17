@@ -33,6 +33,8 @@ const OrganizationSettings: React.FC = () => {
     workingDays: "",
     dayStartTime: "",
     dayEndTime: "",
+    latitude: "",
+    longitude: "",
     active: true,
   });
 
@@ -68,6 +70,8 @@ const OrganizationSettings: React.FC = () => {
           workingDays: org?.workingDays || "",
           dayStartTime: org?.dayStartTime || "",
           dayEndTime: org?.dayEndTime || "",
+          latitude: org?.latitude !== undefined ? String(org.latitude) : prev.latitude || "",
+          longitude: org?.longitude !== undefined ? String(org.longitude) : prev.longitude || "",
           active: org?.status ? org.status === "active" : prev.active,
         }));
       } catch (err) {
@@ -86,6 +90,8 @@ const OrganizationSettings: React.FC = () => {
     const file = e.target.files?.[0];
     setFormData((prev) => ({ ...prev, logoFile: file }));
   };
+
+
 
   const handleDiscard = async () => {
     try {
@@ -118,6 +124,8 @@ const OrganizationSettings: React.FC = () => {
         workingDays: org?.workingDays || "",
         dayStartTime: org?.dayStartTime || "",
         dayEndTime: org?.dayEndTime || "",
+        latitude: org?.latitude !== undefined ? String(org.latitude) : prev.latitude || "",
+        longitude: org?.longitude !== undefined ? String(org.longitude) : prev.longitude || "",
         active: org?.status ? org.status === "active" : prev.active,
       }));
       toast({ title: "Discarded", description: "Form reset to latest server data." });
@@ -180,6 +188,8 @@ const OrganizationSettings: React.FC = () => {
       workingDays: formData.workingDays || base.workingDays,
       dayStartTime: formData.dayStartTime || base.dayStartTime,
       dayEndTime: formData.dayEndTime || base.dayEndTime,
+      latitude: formData.latitude ? parseFloat(formData.latitude) : base.latitude,
+      longitude: formData.longitude ? parseFloat(formData.longitude) : base.longitude,
       status,
     };
 
@@ -304,6 +314,17 @@ const OrganizationSettings: React.FC = () => {
                   <div className="space-y-2">
                     <Label htmlFor="zipCode">Zip Code</Label>
                     <Input id="zipCode" name="zipCode" value={formData.zipCode} onChange={handleChange} />
+                  </div>
+                </div>
+                {/* Latitude/Longitude */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="latitude">Latitude</Label>
+                    <Input id="latitude" name="latitude" value={formData.latitude} onChange={handleChange} placeholder="e.g., 12.9716" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="longitude">Longitude</Label>
+                    <Input id="longitude" name="longitude" value={formData.longitude} onChange={handleChange} placeholder="e.g., 77.5946" />
                   </div>
                 </div>
               </div>

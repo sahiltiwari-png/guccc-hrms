@@ -34,6 +34,8 @@ export interface Organization {
   status: string;
   dayStartTime?: string;
   dayEndTime?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 // Get all organizations
