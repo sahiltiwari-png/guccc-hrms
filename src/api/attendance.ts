@@ -149,7 +149,7 @@ export const updateAttendance = async (employeeId: string, attendanceId: string,
 // Clock-in an employee for today
 export const clockInEmployee = async (
   employeeId: string,
-  data: { latitude: number; longitude: number; markedBy: string }
+  data: { latitude: number; longitude: number; markedBy: string; isOnWFH?: boolean }
 ) => {
   try {
     const response = await API.post(`/attendance/clock-in/${employeeId}`, data);

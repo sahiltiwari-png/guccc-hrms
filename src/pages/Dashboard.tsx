@@ -5,6 +5,9 @@ import { getHolidayCalendar, saveHolidayCalendar } from "@/api/holidayCalendar";
 import { uploadFile } from "@/api/uploadFile";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { OrgSearchContext } from "@/components/layout/MainLayout";
 import { Plus, Building, Users, X, LogIn, LogOut, ClipboardList, Calculator, FileText } from "lucide-react";
 import { getEmployeeById } from "@/api/employees";
@@ -34,6 +37,9 @@ const Dashboard = () => {
   const [attendanceToday, setAttendanceToday] = useState<any | null>(null);
   const [clocking, setClocking] = useState<{in:boolean; out:boolean}>({in:false, out:false});
   const [calendarUrl, setCalendarUrl] = useState<string | null>(null);
+  const [wfhModalOpen, setWfhModalOpen] = useState(false);
+  const [wfhChecked, setWfhChecked] = useState(false);
+  const [clockInErrorMessage, setClockInErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     // Show access denied message when redirected from restricted routes
@@ -141,7 +147,10 @@ const Dashboard = () => {
       setAttendanceToday(res?.attendance || attendanceToday);
       toast({ title: 'Clock in recorded', description: res?.message || 'You have clocked in.' });
     } catch (err: any) {
-      toast({ title: 'Clock in failed', description: err?.response?.data?.message || err?.message || 'Please try again.' });
+      const msg = err?.response?.data?.message || err?.message || 'Please try again.';
+      toast({ title: 'Clock in failed', description: msg });
+      setClockInErrorMessage(msg);
+      setWfhModalOpen(true);
     } finally {
       setClocking((s) => ({ ...s, in: false }));
     }
@@ -161,6 +170,26 @@ const Dashboard = () => {
       toast({ title: 'Clock out failed', description: err?.response?.data?.message || err?.message || 'Please try again.' });
     } finally {
       setClocking((s) => ({ ...s, out: false }));
+    }
+  };
+
+  const handleWFHClockIn = async () => {
+    const id = user?._id || user?.id;
+    if (!id) return;
+    setClocking((s) => ({ ...s, in: true }));
+    try {
+      const { lat, lng } = await getGeolocation();
+      const res = await clockInEmployee(id, { latitude: lat, longitude: lng, markedBy: 'user', isOnWFH: wfhChecked });
+      setAttendanceToday(res?.attendance || attendanceToday);
+      toast({ title: 'Clock in recorded', description: res?.message || 'You have clocked in.' });
+      setWfhModalOpen(false);
+      setWfhChecked(false);
+      setClockInErrorMessage(null);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Please try again.';
+      toast({ title: 'Clock in failed', description: msg });
+    } finally {
+      setClocking((s) => ({ ...s, in: false }));
     }
   };
 
@@ -199,6 +228,22 @@ const Dashboard = () => {
             'linear-gradient(151.95deg, rgba(76, 220, 156, 0.81) 17.38%, rgba(255, 255, 255, 0.81) 107.36%)'
         }}
       >
+        <Dialog open={wfhModalOpen} onOpenChange={setWfhModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Work from home</DialogTitle>
+              <DialogDescription>{clockInErrorMessage || 'Clock-in error. You can mark this as WFH.'}</DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center gap-2 mt-2">
+              <Checkbox id="wfh" checked={wfhChecked} onCheckedChange={(val: any) => setWfhChecked(!!val)} />
+              <Label htmlFor="wfh">Work from home</Label>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" onClick={() => setWfhModalOpen(false)}>Cancel</Button>
+              <Button className="bg-green-100 text-green-700 hover:bg-green-200" onClick={handleWFHClockIn}>Clock in</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         {/* Image Modal */}
         {showImageModal && calendarData?.calendarFile && (
           <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
