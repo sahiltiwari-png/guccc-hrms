@@ -35,6 +35,7 @@ interface AttendanceRecord {
   clockOut: string | null;
   totalWorkingHours: number | null;
   date: string;
+  isOnWFH?: boolean;
 }
 
 interface AttendanceResponse {
@@ -217,17 +218,18 @@ const AdminAttendanceView = () => {
               <table className="min-w-full text-sm">
                 <thead className="border-b" style={{ background: '#2C373B', color: '#FFFFFF' }}>
                   <tr>
-                    <th className="px-4 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Employee</th>
-                    <th className="px-4 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Status</th>
-                    <th className="px-4 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Clock In</th>
-                    <th className="px-4 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Clock Out</th>
-                    <th className="px-4 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Actions</th>
+                    <th className="px-3 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Employee</th>
+                    <th className="px-3 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Status</th>
+                    <th className="px-3 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Clock In</th>
+                    <th className="px-3 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Clock Out</th>
+                    <th className="px-3 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>WFH</th>
+                    <th className="px-3 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                 {attendanceData.items.map((record) => (
                   <tr key={record._id} className="border-b last:border-0 hover:bg-emerald-50 transition-colors">
-                    <td className="px-4 py-2">
+                    <td className="px-3 py-2">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10">
                           {record.employee.profilePhotoUrl ? (
@@ -244,14 +246,19 @@ const AdminAttendanceView = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-3 py-2">
                       <Badge className={cn("capitalize", getStatusBadgeClass(record.status))}>
                         {record.status}
                       </Badge>
                     </td>
-                    <td className="px-4 py-2" style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>{formatTime(record.clockIn)}</td>
-                    <td className="px-4 py-2" style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>{formatTime(record.clockOut)}</td>
-                    <td className="px-4 py-2">
+                    <td className="px-3 py-2" style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>{formatTime(record.clockIn)}</td>
+                    <td className="px-3 py-2" style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>{formatTime(record.clockOut)}</td>
+                    <td className="px-3 py-2">
+                      <Badge className={record.isOnWFH ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"}>
+                        {record.isOnWFH ? "Yes" : "No"}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-2">
                       <Button
                         variant="link"
                         size="icon"

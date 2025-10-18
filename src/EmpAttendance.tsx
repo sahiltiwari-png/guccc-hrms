@@ -35,6 +35,7 @@ interface AttendanceRecord {
   clockOut: string | null;
   totalWorkingHours: number | null;
   date: string;
+  isOnWFH?: boolean;
 }
 
 interface AttendanceResponse {
@@ -107,6 +108,7 @@ const Attendance = () => {
             clockOut: item.clockOut ?? null,
             totalWorkingHours: typeof item.totalWorkingHours === 'string' ? item.totalWorkingHours : (item.totalWorkingHours ?? null),
             date: item.date,
+            isOnWFH: item.isOnWFH ?? false,
           }));
 
           const normalized: AttendanceResponse = {
@@ -141,6 +143,7 @@ const Attendance = () => {
                 clockOut: rec.clockOut,
                 totalWorkingHours: typeof rec.totalWorkingHours === 'string' ? rec.totalWorkingHours : (rec.totalWorkingHours ?? null),
                 date: rec.date,
+                isOnWFH: rec.isOnWFH ?? false,
               }
             ]
           };
@@ -332,34 +335,40 @@ const Attendance = () => {
               <table className="min-w-full text-sm">
                 <thead className="border-b" style={{ backgroundColor: '#2C373B' }}>
                   <tr>
-                    <th className="px-4 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Date</th>
-                    <th className="px-4 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Status</th>
-                    <th className="px-4 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Clockin</th>
-                    <th className="px-4 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Clockout</th>
-                    <th className="px-4 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Working hours</th>
-                    <th className="px-4 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Marked by</th>
-                    <th className="px-4 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Actions</th>
+                    <th className="px-3 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Date</th>
+                    <th className="px-3 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Status</th>
+                    <th className="px-3 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Clockin</th>
+                    <th className="px-3 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Clockout</th>
+                    <th className="px-3 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>WFH</th>
+                    <th className="px-3 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Working hours</th>
+                    <th className="px-3 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Marked by</th>
+                    <th className="px-3 py-2 text-left" style={{fontSize: '12px', fontWeight: 600, color: '#FFFFFF'}}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                 {attendanceData.items.map((record) => (
                   <tr key={record._id} className="border-b last:border-0 hover:bg-emerald-50 transition-colors">
-                    <td className="px-4 py-2" style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>{format(new Date(record.date), 'dd/MM/yyyy')}</td>
-                    <td className="px-4 py-2">
+                    <td className="px-3 py-2" style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>{format(new Date(record.date), 'dd/MM/yyyy')}</td>
+                    <td className="px-3 py-2">
                       <Badge className={cn("capitalize", getStatusBadgeClass(record.status))}>
                         {record.status}
                       </Badge>
                     </td>
-                    <td className="px-4 py-2" style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>{formatTime(record.clockIn)}</td>
-                    <td className="px-4 py-2" style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>{formatTime(record.clockOut)}</td>
+                    <td className="px-3 py-2" style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>{formatTime(record.clockIn)}</td>
+                    <td className="px-3 py-2" style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>{formatTime(record.clockOut)}</td>
+                    <td className="px-3 py-2">
+                      <Badge className={record.isOnWFH ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"}>
+                        {record.isOnWFH ? "Yes" : "No"}
+                      </Badge>
+                    </td>
                     
-                    <td className="px-4 py-2" style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>
+                    <td className="px-3 py-2" style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>
                       {typeof record.totalWorkingHours === 'number' ? `${record.totalWorkingHours}` : (record.totalWorkingHours || '-')}
                     </td>
-                    <td className="px-4 py-2" style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>
+                    <td className="px-3 py-2" style={{fontSize: '14px', fontWeight: 500, color: '#2C373B'}}>
                       {(record as any).markedBy || 'Admin'}
                     </td>
-                    <td className="px-4 py-2">
+                    <td className="px-3 py-2">
                       <Button
                         variant="ghost"
                         size="sm"
