@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -20,13 +20,18 @@ import { Calendar, ChevronDown, Clock, X } from "lucide-react";
 import { getEmployees, Employee as EmployeeType } from "@/api/employees";
 import { createRegularizationRequest, CreateRegularizationRequest } from "@/api/regularizations";
 import { toast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const SubmitRegularization = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
   const storedRole = localStorage.getItem('role');
   if (storedRole === 'superAdmin') {
     return <Navigate to="/dashboard" replace />;
   }
+
+  const isEmployee = ((user?.role || storedRole || '').toLowerCase() === 'employee');
 
   // Form state
   const [submitting, setSubmitting] = useState(false);
@@ -45,7 +50,49 @@ const SubmitRegularization = () => {
   const [loadingFormEmployees, setLoadingFormEmployees] = useState(false);
 
   useEffect(() => {
-    if (showFormEmployeeDropdown) {
+    if (isEmployee) {
+      const state = (location.state as any) || {};
+      const id = state.employeeId || (user?._id || (user as any)?.id) || '';
+      const fullName = state.employeeName || (user?.name as string) || `${(user as any)?.firstName || ''} ${(user as any)?.lastName || ''}`.trim();
+      const [firstName, ...rest] = (fullName || '').split(' ');
+      const lastName = rest.join(' ');
+      const code = state.employeeCode || (user as any)?.employeeCode || '';
+
+      const selected: EmployeeType = {
+        _id: id,
+        organizationId: (user as any)?.organizationId || '',
+        firstName: firstName || '',
+        lastName: lastName || '',
+        email: (user as any)?.email || '',
+        phone: (user as any)?.phone || '',
+        employeeCode: code,
+        designation: (user as any)?.designation || '',
+        status: (user as any)?.status || 'active',
+        loginEnabled: true,
+        isActive: true,
+        isSystemGenerated: false,
+        createdAt: (user as any)?.createdAt || new Date().toISOString(),
+        updatedAt: (user as any)?.updatedAt || new Date().toISOString(),
+        __v: 0,
+        profilePhotoUrl: (user as any)?.profilePhotoUrl || (user as any)?.profileImage || undefined,
+      };
+
+      setFormSelectedEmployee(selected);
+      setFormEmployeeSearch(`${selected.firstName} ${selected.lastName} (${selected.employeeCode})`);
+      setShowFormEmployeeDropdown(false);
+
+      if (state.date) {
+        const dateOnly = typeof state.date === 'string' && state.date.includes('T')
+          ? state.date.split('T')[0]
+          : state.date;
+        setFormData((prev) => ({ ...prev, date: dateOnly || '' }));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEmployee, user, location.state]);
+
+  useEffect(() => {
+    if (showFormEmployeeDropdown && !isEmployee) {
       searchFormEmployees();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -196,27 +243,33 @@ const SubmitRegularization = () => {
                         {formSelectedEmployee.firstName} {formSelectedEmployee.lastName}
                       </span>
                       <span className="text-emerald-600 text-xs">({formSelectedEmployee.employeeCode})</span>
-                      <button type="button" onClick={clearFormEmployee} className="text-emerald-600 hover:text-emerald-800 ml-1">
-                        <X className="h-4 w-4" />
-                      </button>
+                      {!isEmployee && (
+                        <button type="button" onClick={clearFormEmployee} className="text-emerald-600 hover:text-emerald-800 ml-1">
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   ) : (
-                    <>
-                      <Input
-                        placeholder="Click to select employee..."
-                        value={formEmployeeSearch}
-                        onChange={(e) => setFormEmployeeSearch(e.target.value)}
-                        onFocus={handleFormSearchFocus}
-                        onClick={handleFormSearchClick}
-                        className="border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm placeholder:text-[#2C373B] cursor-pointer flex-1 bg-[rgb(209,250,229)] text-[#2C373B]"
-                      />
-                      <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                    </>
+                    isEmployee ? (
+                      <span className="text-sm text-[#2C373B]">Selecting your profile...</span>
+                    ) : (
+                      <>
+                        <Input
+                          placeholder="Click to select employee..."
+                          value={formEmployeeSearch}
+                          onChange={(e) => setFormEmployeeSearch(e.target.value)}
+                          onFocus={handleFormSearchFocus}
+                          onClick={handleFormSearchClick}
+                          className="border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm placeholder:text-[#2C373B] cursor-pointer flex-1 bg-[rgb(209,250,229)] text-[#2C373B]"
+                        />
+                        <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      </>
+                    )
                   )}
                 </div>
 
                 {/* Employee Dropdown */}
-                {showFormEmployeeDropdown && (formEmployees.length > 0 || loadingFormEmployees) && (
+                {!isEmployee && showFormEmployeeDropdown && (formEmployees.length > 0 || loadingFormEmployees) && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-emerald-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
                     {loadingFormEmployees ? (
                       <div className="p-2 text-center text-gray-500 text-sm">Searching...</div>
