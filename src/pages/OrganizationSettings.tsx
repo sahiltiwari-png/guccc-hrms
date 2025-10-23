@@ -8,6 +8,7 @@ import { Upload } from "lucide-react";
 import { getOrganizationById, updateOrganization, type Organization } from "@/api/organizations";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
+import { uploadFile } from "@/api/uploadFile";
 
 const OrganizationSettings: React.FC = () => {
   const { organizationId } = useAuth();
@@ -20,6 +21,7 @@ const OrganizationSettings: React.FC = () => {
     website: "",
     domain: "",
     logoFile: undefined as File | undefined,
+    logoUrl: "",
     addressLine1: "",
     addressLine2: "",
     country: "",
@@ -57,6 +59,7 @@ const OrganizationSettings: React.FC = () => {
           website: org?.website || "",
           domain: org?.domain || "",
           // logoFile will remain undefined; logoUrl may exist but input expects file
+          logoUrl: org?.logoUrl || "",
           addressLine1: org?.addressLine1 || "",
           addressLine2: org?.addressLine2 || "",
           country: org?.country || "",
@@ -86,9 +89,17 @@ const OrganizationSettings: React.FC = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    if (!file) return;
     setFormData((prev) => ({ ...prev, logoFile: file }));
+    try {
+      const url = await uploadFile(file);
+      setFormData((prev) => ({ ...prev, logoUrl: url }));
+      toast({ title: "Logo uploaded", description: "Image uploaded successfully." });
+    } catch (err) {
+      toast({ title: "Upload failed", description: "Could not upload image.", variant: "destructive" });
+    }
   };
 
 
@@ -111,6 +122,7 @@ const OrganizationSettings: React.FC = () => {
         domain: org?.domain || "",
         // logoFile remains undefined; UI expects a file input for changes
         logoFile: undefined,
+        logoUrl: org?.logoUrl || "",
         addressLine1: org?.addressLine1 || "",
         addressLine2: org?.addressLine2 || "",
         country: org?.country || "",
@@ -169,7 +181,7 @@ const OrganizationSettings: React.FC = () => {
       registrationNumber: base.registrationNumber,
       taxId: base.taxId,
       domain: base.domain,
-      logoUrl: base.logoUrl,
+      logoUrl: formData.logoUrl || base.logoUrl,
       defaultShiftId: base.defaultShiftId,
       admin: base.admin,
       contactEmail: base.contactEmail ?? formData.contactEmail,
@@ -271,12 +283,16 @@ const OrganizationSettings: React.FC = () => {
                 <Label>Logo Upload</Label>
                 <div className="mt-2 border rounded-md p-4 bg-gray-50">
                   <div className="flex items-center gap-4">
-                    <div className="h-16 w-16 rounded-md bg-gray-200 flex items-center justify-center">
-                      <Upload className="h-6 w-6 text-gray-500" />
+                    <div className="h-16 w-16 rounded-md bg-gray-200 flex items-center justify-center overflow-hidden">
+                      {(formData.logoUrl || originalOrg?.logoUrl) ? (
+                        <img src={formData.logoUrl || originalOrg?.logoUrl || ''} alt="Organization logo" className="h-full w-full object-cover" />
+                      ) : (
+                        <Upload className="h-6 w-6 text-gray-500" />
+                      )}
                     </div>
                     <div className="flex-1 flex items-center gap-3">
-                      <Input type="file" onChange={handleFileChange} className="max-w-xs" />
-                      <span className="text-sm text-muted-foreground">No File Chosen</span>
+                      <Input type="file" accept="image/*" onChange={handleFileChange} className="max-w-xs" />
+                      <span className="text-sm text-muted-foreground">{formData.logoUrl ? "Uploaded" : "No File Chosen"}</span>
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-3">Please upload square image, size less than 100KB</p>
