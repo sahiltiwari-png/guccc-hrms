@@ -1,0 +1,23 @@
+{
+  "name": "HRMS Admin",
+  "short_name": "HRMS",
+  "description": "Comprehensive Human Resource Management System for modern workplaces.",
+  "start_url": "http://my-first-frontends3bucket.s3-website.ap-south-1.amazonaws.com",
+  "scope": "http://my-first-frontends3bucket.s3-website.ap-south-1.amazonaws.com",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0d6efd",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "http://my-first-frontends3bucket.s3-website.ap-south-1.amazonaws.com/gounicrew-logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "http://my-first-frontends3bucket.s3-website.ap-south-1.amazonaws.com/gounicrew-logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

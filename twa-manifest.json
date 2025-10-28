@@ -1,0 +1,50 @@
+{
+  "packageId": "com.amazonaws.ap_south_1.s3_website.my_first_frontends3bucket.twa",
+  "host": "my-first-frontends3bucket.s3-website.ap-south-1.amazonaws.com",
+  "name": "HRMS Admin",
+  "launcherName": "HRMS",
+  "display": "standalone",
+  "themeColor": "#0D6EFD",
+  "themeColorDark": "#000000",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#FFFFFF",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "http://my-first-frontends3bucket.s3-website.ap-south-1.amazonaws.com/gounicrew-logo.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "C:\\Users\\Pcc\\Desktop\\hrmscomplete\\hrmsadmin\\android.keystore",
+    "alias": "android"
+  },
+  "appVersionName": "1",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "http://my-first-frontends3bucket.s3-website.ap-south-1.amazonaws.com/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": true
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "http://my-first-frontends3bucket.s3-website.ap-south-1.amazonaws.com/",
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "",
+  "displayOverride": [],
+  "appVersion": "1"
+}
