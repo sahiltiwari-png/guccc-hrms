@@ -584,7 +584,9 @@ const EmployeeList = ({ searchTerm }: EmployeeListProps) => {
                           size="icon"
                           className="bg-[#E2E9F0] text-[#2C373B] hover:bg-[#d6dde6]"
                           title="View details"
-                          onClick={async () => {
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={async (e) => {
+                            e.stopPropagation();
                             setSelectedEmployee(emp);
                             setModalOpen(true);
                             setLoadingDetails(true);
@@ -614,7 +616,9 @@ const EmployeeList = ({ searchTerm }: EmployeeListProps) => {
                           size="icon"
                           className="bg-[#E2E9F0] text-[#2C373B] hover:bg-[#d6dde6]"
                           title="Edit details"
-                          onClick={async () => {
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={async (e) => {
+                            e.stopPropagation();
                             setSelectedEmployee(emp);
                             setModalOpen(true);
                             setLoadingDetails(true);
@@ -654,7 +658,12 @@ const EmployeeList = ({ searchTerm }: EmployeeListProps) => {
         </div>
         {/* Employee Details Modal (UI only, no API yet) */}
         <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-          <DialogContent className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <DialogContent
+            className="max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
             <DialogHeader className="mb-2 pb-2 border-b">
               <div className="flex items-center gap-4">
                 <div className="relative w-20 h-20">
